@@ -1,0 +1,1210 @@
+#!/bin/bash
+#
+# Generates Django Project Skeletons Simply and Properly
+# Justine Tunney <jtunney@lobstertech.com>
+# Licensed MIT
+#
+
+PROJ=$1
+
+[ -z "$PROJ" ]               && ( echo "missing name!" >&2; exit 1 )
+[ -f "$PROJ" ]               && ( echo "$PROJ already exists!" >&2; exit 1 )
+[ -z "$DEST" ]               && DEST="."
+[ -z "$EMAIL" ]              && EMAIL="$(git config user.email)"
+[ -z "$EMAIL" ]              && EMAIL="$USER@$(hostname -f)"
+[ -z "$AUTHOR" ]             && AUTHOR="$(git config user.name)"
+[ -z "$AUTHOR" ]             && AUTHOR="$USER"
+[ -z "$DESCRIP" ]            && DESCRIP="$PROJ"
+[ -z "$LICENSE" ]            && LICENSE="GNU AGPL v3 or later"
+[ -z "$PIP_DOWNLOAD_CACHE" ] && export PIP_DOWNLOAD_CACHE="~/.pip/cache"
+
+virtualenv $PROJ
+cd $PROJ
+source bin/activate
+mkdir $PROJ
+cd $PROJ
+
+mkdir -p scripts
+mkdir -p conf/{init.d,nginx}
+mkdir -p doc/{_build,_static,_templates}
+mkdir -p $PROJ/templates/$PROJ
+mkdir -p $PROJ/media/$PROJ/{img,css,js}
+mkdir -p $PROJ/management/commands
+
+echo "downloading ez_setup.py..."
+wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py || exit 1
+echo "downloading $PROJ/media/$PROJ/img/favicon.png..."
+wget -qO $PROJ/media/$PROJ/img/favicon.png https://we.riseup.net/favicon.png || exit 1
+echo "downloading $PROJ/media/$PROJ/js/jquery.js..."
+wget -qO $PROJ/media/$PROJ/js/jquery.js http://code.jquery.com/jquery.js || exit 1
+echo "downloading $PROJ/media/$PROJ/js/jquery.min.js..."
+wget -qO $PROJ/media/$PROJ/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
+
+echo "generating .gitignore..."
+cat >.gitignore <<EOF
+settings_local.py
+core
+*.pyc
+*.pyo
+*.pyc
+*.o
+*.bak
+*.db
+*~
+*.rej
+*.orig
+.figleaf*
+*.egg-info
+*.egg
+._*
+.DS_Store
+Thumbs.db*
+docs/_build
+.figleaf*
+*.egg-info
+*.egg
+build
+deps
+dist
+pip-log.txt
+EOF
+
+echo "generating setup.py..."
+cat >setup.py <<EOF
+# http://packages.python.org/distribute/setuptools.html
+# http://diveintopython3.org/packaging.html
+# http://wiki.python.org/moin/CheeseShopTutorial
+# http://pypi.python.org/pypi?:action=list_classifiers
+
+from ez_setup import use_setuptools
+use_setuptools(version="0.6c11")
+
+import os
+from setuptools import setup, find_packages
+
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+version = __import__("$PROJ").__version__
+
+setup(
+    name                 = "$PROJ",
+    version              = version,
+    description          = "$DESCRIP",
+    long_description     = read("README.rst"),
+    author               = "$AUTHOR",
+    author_email         = "$EMAIL",
+    license              = "$LICENSE",
+    install_requires     = ["Django", "south", "python-memcached",
+                            "django-debug-toolbar"],
+    packages             = find_packages(),
+    include_package_data = True,
+    zip_safe             = False,
+    scripts              = ["scripts/" + f for f in os.listdir("scripts")
+                            if not f.startswith(".")],
+)
+EOF
+
+echo "generating README.rst..."
+cat >README.rst <<EOF
+.. -*-rst-*-
+
+=$(echo $PROJ | sed s/./=/g)=
+ $PROJ
+=$(echo $PROJ | sed s/./=/g)=
+
+:name:        $PROJ
+:description: $DESCRIP
+:copyright:   © $(date +%Y) $AUTHOR
+:license:     $LICENSE
+
+
+Installation
+============
+
+System-wide install::
+
+    sudo python setup.py install
+    $PROJ syncdb
+    $PROJ test
+    $PROJ runserver
+
+Virtualenv git install::
+
+    virtualenv $PROJ
+    cd $PROJ/$PROJ
+    source bin/activate
+    git clone REPO_URL
+    easy_install pip
+    pip install -e \$(pwd)
+    $PROJ-dev syncdb
+    $PROJ-dev test
+    $PROJ-dev runserver
+
+Documentation::
+
+    pip install sphinx
+    make -C doc html
+    firefox doc/_build/html/index.html
+
+EOF
+
+echo "generating scripts/$PROJ..."
+cat >scripts/$PROJ <<EOF
+#!/usr/bin/env python
+import os
+# ignore when django autoreloader restarts program
+if os.environ.get("RUN_MAIN") != "true":
+    if not os.environ.get("DJANGO_SETTINGS_MODULE"):
+        os.environ["DJANGO_SETTINGS_MODULE"] = "$PROJ.settings"
+from django.core.management import execute_from_command_line
+from django.conf import settings
+execute_from_command_line()
+EOF
+
+echo "generating scripts/$PROJ-dev..."
+cat >scripts/$PROJ-dev <<EOF
+#!/usr/bin/env python
+import os
+import sys
+# ignore when django autoreloader restarts program
+if os.environ.get("RUN_MAIN") != "true":
+    if os.environ.get("DJANGO_SETTINGS_MODULE"):
+        print >>sys.stderr, ("Overriding DJANGO_SETTINGS_MODULE not permitted "
+                             "in development mode.  Use $PROJ command "
+                             "instead.")
+        sys.exit(1)
+    else:
+        os.environ["DJANGO_SETTINGS_MODULE"] = "$PROJ.settings_dev"
+from django.core.management import execute_from_command_line
+from django.conf import settings
+execute_from_command_line()
+EOF
+
+echo "generating $PROJ/__init__.py..."
+cat >$PROJ/__init__.py <<EOF
+__version__ = "0.1"
+EOF
+
+echo "generating $PROJ/settings.py..."
+cat >$PROJ/settings.py <<EOF
+r"""
+
+    $PROJ.settings
+    $(echo $PROJ.settings | sed s/./~/g)
+
+    This file is used to configure Django.
+
+"""
+
+import os
+import sys
+from datetime import timedelta
+from os.path import abspath, dirname, join, exists
+project_root = dirname(abspath(__file__))
+
+DEBUG = False
+TEMPLATE_DEBUG = DEBUG
+SECRET_KEY = "please change me to some wacky random value"
+MEDIA_ROOT = join(project_root, "media")
+MEDIA_URL = "/media/"
+STATIC_URL = "/media/"
+SITE_ID = 1
+USE_I18N = True
+USE_L10N = False
+DEFAULT_CHARSET = "utf-8"
+ROOT_URLCONF = "$PROJ.urls"
+LOGIN_URL = "/login/"
+LOGOUT_URL = "/logout/"
+LOGIN_REDIRECT_URL = "/"
+ADMIN_MEDIA_PREFIX = "/media/admin/"
+USE_X_FORWARDED_HOST = True
+BOLD = "\x1b[1m"
+GREEN = "\x1b[32m"
+RESET = "\x1b[0m"
+
+ADMINS = (
+    ("", "$EMAIL"),
+)
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "$PROJ.sqlite3",
+    },
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
+        "KEY_PREFIX": project_root,
+        "LOCATION": [
+            "127.0.0.1:11211",
+        ],
+    },
+}
+
+TEMPLATE_LOADERS = (
+    ("django.template.loaders.cached.Loader", (
+        "django.template.loaders.filesystem.Loader",
+        "django.template.loaders.app_directories.Loader",
+    )),
+)
+
+MIDDLEWARE_CLASSES = [
+    "$PROJ.middleware.XForwardedForMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.transaction.TransactionMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "$PROJ.middleware.CsrfCookieWhenLoggedIn",
+    "$PROJ.middleware.NeverCache",
+]
+
+INSTALLED_APPS = [
+    "$PROJ",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.admin",
+    "south",
+]
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "formatters": {
+        "verbose": {
+            "format": (GREEN + "%(asctime)s %(levelname)s %(name)s "
+                       "%(filename)s:%(lineno)d " + RESET + "%(message)s"),
+        },
+        "simple": {
+            "format": GREEN + "%(levelname)s " + RESET + "%(message)s",
+        },
+    },
+    "handlers": {
+        "null": {
+            "level": "DEBUG",
+            "class": "django.utils.log.NullHandler",
+        },
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "mail_admins": {
+            "level": "ERROR",
+            "class": "django.utils.log.AdminEmailHandler",
+            "include_html": True,
+        },
+    },
+    "loggers": {
+        "django": {
+            "level": "WARNING",
+            "handlers": ["console"],
+            "propagate": True,
+        },
+        "django.request": {
+            "level": "WARNING",
+            "handlers": ["console", "mail_admins"],
+            "propagate": False,
+        },
+        "$PROJ": {
+            "level": "WARNING",
+            "handlers": ["console", "mail_admins"],
+            "propagate": False,
+        },
+    },
+}
+
+try:
+    from $PROJ.settings_local import *
+except ImportError:
+    print >>sys.stderr, "not found: settings_local.py"
+else:
+    print >>sys.stderr, "loaded: settings_local.py"
+EOF
+
+echo "generating $PROJ/settings_dev.py..."
+cat >$PROJ/settings_dev.py <<EOF
+
+import sys
+from $PROJ.settings import *
+
+DEBUG = True
+TEMPLATE_DEBUG = DEBUG
+
+TEMPLATE_LOADERS = [
+    "django.template.loaders.filesystem.Loader",
+    "django.template.loaders.app_directories.Loader",
+]
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+MIDDLEWARE_CLASSES += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+INSTALLED_APPS += ["debug_toolbar"]
+
+LOGGING["loggers"]["django"]["level"] = "DEBUG"
+LOGGING["loggers"]["django.request"]["level"] = "DEBUG"
+LOGGING["loggers"]["$PROJ"]["level"] = "DEBUG"
+LOGGING["handlers"]["console"]["formatter"] = "verbose"
+LOGGING["handlers"]["mail_admins"] = {"level": "DEBUG",
+                                      "class": "django.utils.log.NullHandler"}
+
+try:
+    from $PROJ.settings_dev_local import *
+except ImportError:
+    print >>sys.stderr, "not found: $PROJ/settings_dev_local.py"
+else:
+    print >>sys.stderr, "loaded: $PROJ/settings_dev_local.py"
+EOF
+
+echo "generating $PROJ/settings_local.py..."
+cat >$PROJ/settings_local.py <<EOF
+# i"m ignored by git so you can specify your secret settings :)
+SECRET_KEY = "$(head -c 51 /dev/urandom | base64)"
+EOF
+
+echo "generating $PROJ/middleware.py..."
+cat >$PROJ/middleware.py <<EOF
+r"""
+
+    $PROJ.middleware
+    $(echo $PROJ.middleware | sed s/./~/g)
+
+    Django middleware definitions.
+
+"""
+
+from django.utils.cache import add_never_cache_headers
+
+
+class NeverCache(object):
+    def process_response(self, request, response):
+        add_never_cache_headers(response)
+        return response
+
+
+class XForwardedForMiddleware(object):
+    """Replace \`\`REMOTE_ADDR\`\` with \`\`HTTP_X_FORWARDED_FOR\`\`
+
+    When reverse proxying from nginx, we receive a tcp connection from
+    localhost which isn"t the client"s real ip address.  Normally
+    reverse proxies are configured to set the \`\`X-Forwarded-For\`\`
+    header which gives us the actual client ip.
+    """
+
+    def process_request(self, request):
+        if "HTTP_X_FORWARDED_FOR" in request.META:
+            ip = request.META["HTTP_X_FORWARDED_FOR"]
+            # trim that goofy prefix when nginx uses hybrid ip4/ip6 sockets
+            if ip.startswith('::ffff:'):
+                ip = ip[len('::ffff:'):]
+            request.META["REMOTE_ADDR"] = ip
+            request.META["REMOTE_HOST"] = None
+
+
+class CsrfCookieWhenLoggedIn(object):
+    """Tell Django to set CSRF cookie on all pages when logged in
+
+    Normally Django only sets the CSRF cookie when you use the CSRF
+    protection template tag.  Because we use Ajax for just about
+    everything, we need to ensure this cookie is always set once the
+    user logs in.
+    """
+
+    def process_response(self, request, response):
+        if response.status_code == 200 and request.method == "GET":
+            if request.user.is_authenticated():
+                request.META["CSRF_COOKIE_USED"] = True
+        return response
+EOF
+
+echo "generating $PROJ/tests.py..."
+cat >$PROJ/tests.py <<EOF
+
+from django.test import TestCase
+from django.core.urlresolvers import reverse
+
+
+class BasicTest(TestCase):
+    fixtures = []
+
+    def setUp(self):
+        pass
+
+    def test_index(self):
+        url = reverse("$PROJ.views.index")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_notfound(self):
+        response = self.client.get("/euhcuehsrcoahucr/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_error(self):
+        url = reverse("$PROJ.views.error")
+        self.assertRaises(AssertionError, lambda: self.client.get(url))
+EOF
+
+echo "generating $PROJ/admin.py..."
+cat >$PROJ/admin.py <<EOF
+r"""
+
+    $PROJ.admin
+    $(echo $PROJ.admin | sed s/./~/g)
+
+    Django admin gui customization
+
+"""
+
+from django.contrib import admin
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+
+from $PROJ import models as db
+
+
+class AdminSite(admin.AdminSite):
+    """Overriden Django AdminSite Object
+    """
+
+    def __init__(self, *args, **kwargs):
+        admin.AdminSite.__init__(self, *args, **kwargs)
+        self.register(User, UserAdmin)
+        self.register(Group, GroupAdmin)
+
+
+site = AdminSite(name="${PROJ}admin")
+EOF
+
+echo "generating $PROJ/urls.py..."
+cat >$PROJ/urls.py <<EOF
+r"""
+
+    $PROJ.urls
+    $(echo $PROJ.urls | sed s/./~/g)
+
+    HTTP request routing
+
+"""
+
+from django.conf import settings
+from django.conf.urls.defaults import patterns, url, include
+from django.views.decorators.http import require_GET, require_POST
+
+from $PROJ import admin
+
+urlpatterns = patterns("",
+    url(r"^$", "$PROJ.views.index", name="index"),
+    url(r"^error/$", "$PROJ.views.error", name="error"),
+    url(r"^admin/", include(admin.site.urls)),
+)
+
+if settings.DEBUG:
+    urlpatterns += patterns("",
+        url(r"^media/(?P<path>.*)$", "django.views.static.serve",
+            {"document_root": settings.MEDIA_ROOT}),
+    )
+EOF
+
+echo "generating $PROJ/views.py..."
+cat >$PROJ/views.py <<EOF
+r"""
+
+    $PROJ.views
+    $(echo $PROJ.views | sed s/./~/g)
+
+    Dynamic web page functions
+
+"""
+
+from django.conf import settings
+from django.template import RequestContext
+from django.shortcuts import render_to_response
+
+from $PROJ import models as db
+
+
+def index(request):
+    """I render the home page
+    """
+    return render_to_response(
+        "$PROJ/index.html", {},
+        context_instance=RequestContext(request))
+
+
+def error(request):
+    """A view that's designed to fail
+    """
+    assert False
+EOF
+
+echo "generating $PROJ/models.py..."
+cat >$PROJ/models.py <<EOF
+r"""
+
+    $PROJ.models
+    $(echo $PROJ.models | sed s/./~/g)
+
+    Database definition
+
+"""
+
+from django.db import models
+EOF
+
+echo "generating $PROJ/templates/404.html"
+cat >$PROJ/templates/404.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% block body %}
+  <h1>four oh four: brian not found</h1>
+{% endblock body %}
+EOF
+
+echo "generating $PROJ/templates/500.html"
+cat >$PROJ/templates/500.html <<EOF
+<h1>500: Internal Server Catastrophe</h1>
+EOF
+
+echo "generating $PROJ/templates/$PROJ/base.html"
+cat >$PROJ/templates/$PROJ/base.html <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}$PROJ{% endblock title %}</title>
+  <link rel="shortcut icon" href="{{ MEDIA_URL }}$PROJ/img/favicon.png" />
+  <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
+  <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
+  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/$PROJ.css?v=1" type="text/css" media="all" />
+  {% block extra_head %}
+  {% endblock extra_head %}
+</head>
+<body>
+  {% if DEBUG %}
+    <div id="devnotice">DEVELOPMENT MODE</div>
+  {% endif %}
+  {% block body %}
+  {% endblock body %}
+  {% block scripts %}
+    <script src="{{ MEDIA_URL }}$PROJ/js/jquery{% if not DEBUG %}.min{% endif %}.js" type="text/javascript"></script>
+    <script src="{{ MEDIA_URL }}$PROJ/js/$PROJ.js?v=1" type="text/javascript"></script>
+  {% endblock scripts %}
+  <script type="text/javascript">
+    \$(function() {
+      {% block js_init %}
+      {% endblock js_init %}
+    });
+  </script>
+</body>
+</html>
+EOF
+
+echo "generating $PROJ/templates/$PROJ/index.html"
+cat >$PROJ/templates/$PROJ/index.html <<EOF
+{% extends "$PROJ/base.html" %}
+
+{% block body %}
+  <h1>hello kitty!</h1>
+{% endblock body %}
+EOF
+
+echo "generating $PROJ/media/$PROJ/css/$PROJ.css..."
+cat >$PROJ/media/$PROJ/css/$PROJ.css <<EOF
+body { margin-left: auto; margin-right: auto; width: 960px;
+       font: 16px Arial, sans-serif; }
+header, nav, h1, h2, h3, h4 { font-family: Arial, sans-serif; }n
+img { border: none; }
+a { text-decoration: none; }
+textarea { font-family: Arial, sans-serif; }
+code, pre { font: 11px "DejaVu Sans Mono", Monaco, "Courier New", Courier, monospace; }
+pre { margin: 0 1em; }
+
+.bad { color: #a00; font-size: small; font-weight: bold; }
+.good { color: #0a0; font-size: small; font-weight: bold; }
+.finetext { font-size: small; color: #666; }
+
+#devnotice { position: absolute; top: 0; left: 0; width: 100%; color: red; font-weight: bold;
+             text-align: center; z-order: 666; }
+EOF
+
+echo "generating conf/nginx/$PROJ.dev.conf..."
+cat >conf/nginx/$PROJ.dev.conf <<EOF
+# -*-conf-*-
+
+upstream $PROJ {
+  server 127.0.0.1:7000;
+}
+
+server {
+  listen [::]:80 default;
+  server_name $PROJ.com www.$PROJ.com;
+  server_name_in_redirect on;
+  access_log off;
+
+  location ~ /\. { deny all; }
+  location = /favicon.ico { access_log off; return 404; }
+  location = /robots.txt  { access_log off; return 404; }
+  location = /sitemap.xml { access_log off; return 404; }
+
+  # if (\$host !~* ^$PROJ\.com\$) {
+  #   rewrite ^(.*)\$ http://$PROJ.org\$1 redirect;
+  # }
+
+  location /media/ {
+    root $(pwd)/$PROJ;
+    # expires 1y;
+    # add_header Cache-Control public;
+    # autoindex on;
+    # autoindex_localtime on;
+  }
+
+  location / {
+    proxy_redirect off;
+    proxy_pass http://$PROJ;
+    proxy_set_header X-Forwarded-For \$remote_addr;
+    proxy_set_header X-Forwarded-Host \$PROJ.com;
+    proxy_connect_timeout 5000ms;
+  }
+}
+EOF
+
+echo "generating conf/init.d/$PROJ..."
+cat >conf/init.d/$PROJ <<EOF
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:		$PROJ
+# Required-Start:	\$local_fs \$remote_fs \$network \$syslog
+# Required-Stop:	\$local_fs \$remote_fs \$network \$syslog
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Start $PROJ gunicorn daemon
+# Description:		Start $PROJ gunicorn daemon
+### END INIT INFO
+
+# Edit /etc/default/$PROJ to change these.
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=$PROJ
+DESC=$PROJ
+DAEMON=$(pwd)/../bin/gunicorn_django
+PIDFILE=$(pwd)/../$PROJ.pid
+SETTINGS=$(pwd)/$PROJ/settings.py
+RUNAS=artists
+WORKERS=5
+BIND=127.0.0.1:7000
+test -r /etc/default/$PROJ && . /etc/default/$PROJ
+
+ARGS="--daemon --bind=\$BIND --workers=\$WORKERS --max-requests=1000 --pid=\$PIDFILE \$SETTINGS"
+
+set -e
+
+. /lib/lsb/init-functions
+
+case "\$1" in
+  start)
+	echo -n "Starting \$DESC: "
+	start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
+	echo "\$NAME."
+	;;
+
+  stop)
+	echo -n "Stopping \$DESC: "
+	start-stop-daemon --stop --pidfile \$PIDFILE
+	echo "\$NAME."
+	rm -f \$PIDFILE
+	;;
+
+  restart|force-reload)
+	echo -n "Restarting \$DESC: "
+	start-stop-daemon --stop --pidfile \$PIDFILE
+	rm -f \$PIDFILE
+	sleep 1
+	start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
+	echo "\$NAME."
+	;;
+
+  reload)
+        echo -n "Reloading \$DESC: "
+        start-stop-daemon --stop --signal HUP --pidfile \$PIDFILE
+        echo "\$NAME."
+        ;;
+
+  status)
+	status_of_proc \$DAEMON \$NAME
+	;;
+  *)
+	N=/etc/init.d/\$NAME
+	echo "Usage: \$N {start|stop|reload|restart|force-reload|status}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
+EOF
+
+echo "generating $PROJ/management/__init__.py..."
+touch $PROJ/management/__init__.py
+
+echo "generating $PROJ/management/commands/__init__.py..."
+touch $PROJ/management/commands/__init__.py
+
+echo "generating doc/conf.py..."
+cat >doc/conf.py <<EOF
+# -*- coding: utf-8 -*-
+
+import sys, os
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+#sys.path.insert(0, os.path.abspath('.'))
+
+if not os.environ.get("DJANGO_SETTINGS_MODULE"):
+    os.environ["DJANGO_SETTINGS_MODULE"] = "$PROJ.settings"
+
+# -- General configuration -----------------------------------------------------
+
+# If your documentation needs a minimal Sphinx version, state it here.
+#needs_sphinx = '1.0'
+
+# Add any Sphinx extension module names here, as strings. They can be extensions
+# coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+
+# Add any paths that contain templates here, relative to this directory.
+templates_path = ['_templates']
+
+# The suffix of source filenames.
+source_suffix = '.rst'
+
+# The encoding of source files.
+#source_encoding = 'utf-8-sig'
+
+# The master toctree document.
+master_doc = 'index'
+
+# General information about the project.
+project = u'$PROJ'
+copyright = u'$(date +%Y), $AUTHOR'
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = '0.1'
+# The full version, including alpha/beta/rc tags.
+release = '0.1'
+
+# The language for content autogenerated by Sphinx. Refer to documentation
+# for a list of supported languages.
+#language = None
+
+# There are two options for replacing |today|: either, you set today to some
+# non-false value, then it is used:
+#today = ''
+# Else, today_fmt is used as the format for a strftime call.
+#today_fmt = '%B %d, %Y'
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+exclude_patterns = ['_build']
+
+# The reST default role (used for this markup: 'text') to use for all documents.
+#default_role = None
+
+# If true, '()' will be appended to :func: etc. cross-reference text.
+#add_function_parentheses = True
+
+# If true, the current module name will be prepended to all description
+# unit titles (such as .. function::).
+#add_module_names = True
+
+# If true, sectionauthor and moduleauthor directives will be shown in the
+# output. They are ignored by default.
+#show_authors = False
+
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'sphinx'
+
+# A list of ignored prefixes for module index sorting.
+#modindex_common_prefix = []
+
+
+# -- Options for HTML output ---------------------------------------------------
+
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+html_theme = 'default'
+
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+#html_theme_options = {}
+
+# Add any paths that contain custom themes here, relative to this directory.
+#html_theme_path = []
+
+# The name for this set of Sphinx documents.  If None, it defaults to
+# "<project> v<release> documentation".
+#html_title = None
+
+# A shorter title for the navigation bar.  Default is the same as html_title.
+#html_short_title = None
+
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+#html_logo = None
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+#html_favicon = None
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ['_static']
+
+# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
+# using the given strftime format.
+#html_last_updated_fmt = '%b %d, %Y'
+
+# If true, SmartyPants will be used to convert quotes and dashes to
+# typographically correct entities.
+#html_use_smartypants = True
+
+# Custom sidebar templates, maps document names to template names.
+#html_sidebars = {}
+
+# Additional templates that should be rendered to pages, maps page names to
+# template names.
+#html_additional_pages = {}
+
+# If false, no module index is generated.
+#html_domain_indices = True
+
+# If false, no index is generated.
+#html_use_index = True
+
+# If true, the index is split into individual pages for each letter.
+#html_split_index = False
+
+# If true, links to the reST sources are added to the pages.
+#html_show_sourcelink = True
+
+# If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
+#html_show_sphinx = True
+
+# If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
+#html_show_copyright = True
+
+# If true, an OpenSearch description file will be output, and all pages will
+# contain a <link> tag referring to it.  The value of this option must be the
+# base URL from which the finished HTML is served.
+#html_use_opensearch = ''
+
+# This is the file name suffix for HTML files (e.g. ".xhtml").
+#html_file_suffix = None
+
+# Output file base name for HTML help builder.
+htmlhelp_basename = '${PROJ}doc'
+
+
+# -- Options for LaTeX output --------------------------------------------------
+
+latex_elements = {
+# The paper size ('letterpaper' or 'a4paper').
+#'papersize': 'letterpaper',
+
+# The font size ('10pt', '11pt' or '12pt').
+#'pointsize': '10pt',
+
+# Additional stuff for the LaTeX preamble.
+#'preamble': '',
+}
+
+# Grouping the document tree into LaTeX files. List of tuples
+# (source start file, target name, title, author, documentclass [howto/manual]).
+latex_documents = [
+  ('index', '$PROJ.tex', u'$PROJ Documentation',
+   u'$AUTHOR', 'manual'),
+]
+
+# The name of an image file (relative to this directory) to place at the top of
+# the title page.
+#latex_logo = None
+
+# For "manual" documents, if this is true, then toplevel headings are parts,
+# not chapters.
+#latex_use_parts = False
+
+# If true, show page references after internal links.
+#latex_show_pagerefs = False
+
+# If true, show URL addresses after external links.
+#latex_show_urls = False
+
+# Documents to append as an appendix to all manuals.
+#latex_appendices = []
+
+# If false, no module index is generated.
+#latex_domain_indices = True
+
+
+# -- Options for manual page output --------------------------------------------
+
+# One entry per manual page. List of tuples
+# (source start file, name, description, authors, manual section).
+man_pages = [
+    ('index', '$PROJ', u'$PROJ Documentation',
+     [u'$AUTHOR'], 1)
+]
+
+# If true, show URL addresses after external links.
+#man_show_urls = False
+
+
+# -- Options for Texinfo output ------------------------------------------------
+
+# Grouping the document tree into Texinfo files. List of tuples
+# (source start file, target name, title, author,
+#  dir menu entry, description, category)
+texinfo_documents = [
+  ('index', '$PROJ', u'$PROJ Documentation',
+   u'$AUTHOR', '$PROJ', 'One line description of project.',
+   'Miscellaneous'),
+]
+
+# Documents to append as an appendix to all manuals.
+#texinfo_appendices = []
+
+# If false, no module index is generated.
+#texinfo_domain_indices = True
+
+# How to display URL addresses: 'footnote', 'no', or 'inline'.
+#texinfo_show_urls = 'footnote'
+EOF
+
+echo "generating doc/index.rst..."
+cat >doc/index.rst <<EOF
+
+$PROJ Documentation
+$(echo "$PROJ Documentation" | sed s/./=/g)
+
+:name:        $PROJ
+:description: $DESCRIP
+:copyright:   © $(date +%Y) $AUTHOR
+:license:     $LICENSE
+
+
+Installation
+============
+
+System-wide install::
+
+    sudo python setup.py install
+    $PROJ syncdb
+    $PROJ test
+    $PROJ runserver
+
+Virtualenv git install::
+
+    virtualenv $PROJ
+    cd $PROJ/$PROJ
+    source bin/activate
+    git clone REPO_URL
+    easy_install pip
+    pip install -e \$(pwd)
+    $PROJ-dev syncdb
+    $PROJ-dev test
+    $PROJ-dev runserver
+
+Documentation::
+
+    pip install sphinx
+    make -C doc html
+    firefox doc/_build/html/index.html
+
+
+Source Code
+===========
+
+.. automodule:: $PROJ.models
+   :members:
+.. automodule:: $PROJ.views
+   :members:
+.. automodule:: $PROJ.admin
+   :members:
+.. automodule:: $PROJ.urls
+   :members:
+.. automodule:: $PROJ.settings
+   :members:
+.. automodule:: $PROJ.middleware
+   :members:
+
+EOF
+
+echo "generating doc/Makefile..."
+cat >doc/Makefile <<EOF
+# Makefile for Sphinx documentation
+#
+
+# You can set these variables from the command line.
+SPHINXOPTS    =
+SPHINXBUILD   = sphinx-build
+PAPER         =
+BUILDDIR      = _build
+
+# Internal variables.
+PAPEROPT_a4     = -D latex_paper_size=a4
+PAPEROPT_letter = -D latex_paper_size=letter
+ALLSPHINXOPTS   = -d \$(BUILDDIR)/doctrees \$(PAPEROPT_\$(PAPER)) \$(SPHINXOPTS) .
+
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest
+
+help:
+	@echo "Please use \`make <target>' where <target> is one of"
+	@echo "  html       to make standalone HTML files"
+	@echo "  dirhtml    to make HTML files named index.html in directories"
+	@echo "  singlehtml to make a single large HTML file"
+	@echo "  pickle     to make pickle files"
+	@echo "  json       to make JSON files"
+	@echo "  htmlhelp   to make HTML files and a HTML help project"
+	@echo "  qthelp     to make HTML files and a qthelp project"
+	@echo "  devhelp    to make HTML files and a Devhelp project"
+	@echo "  epub       to make an epub"
+	@echo "  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
+	@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
+	@echo "  text       to make text files"
+	@echo "  man        to make manual pages"
+	@echo "  changes    to make an overview of all changed/added/deprecated items"
+	@echo "  linkcheck  to check all external links for integrity"
+	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
+
+clean:
+	-rm -rf \$(BUILDDIR)/*
+
+html:
+	\$(SPHINXBUILD) -b html \$(ALLSPHINXOPTS) \$(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in \$(BUILDDIR)/html."
+
+dirhtml:
+	\$(SPHINXBUILD) -b dirhtml \$(ALLSPHINXOPTS) \$(BUILDDIR)/dirhtml
+	@echo
+	@echo "Build finished. The HTML pages are in \$(BUILDDIR)/dirhtml."
+
+singlehtml:
+	\$(SPHINXBUILD) -b singlehtml \$(ALLSPHINXOPTS) \$(BUILDDIR)/singlehtml
+	@echo
+	@echo "Build finished. The HTML page is in \$(BUILDDIR)/singlehtml."
+
+pickle:
+	\$(SPHINXBUILD) -b pickle \$(ALLSPHINXOPTS) \$(BUILDDIR)/pickle
+	@echo
+	@echo "Build finished; now you can process the pickle files."
+
+json:
+	\$(SPHINXBUILD) -b json \$(ALLSPHINXOPTS) \$(BUILDDIR)/json
+	@echo
+	@echo "Build finished; now you can process the JSON files."
+
+htmlhelp:
+	\$(SPHINXBUILD) -b htmlhelp \$(ALLSPHINXOPTS) \$(BUILDDIR)/htmlhelp
+	@echo
+	@echo "Build finished; now you can run HTML Help Workshop with the" \\
+	      ".hhp project file in \$(BUILDDIR)/htmlhelp."
+
+qthelp:
+	\$(SPHINXBUILD) -b qthelp \$(ALLSPHINXOPTS) \$(BUILDDIR)/qthelp
+	@echo
+	@echo "Build finished; now you can run "qcollectiongenerator" with the" \\
+	      ".qhcp project file in \$(BUILDDIR)/qthelp, like this:"
+	@echo "# qcollectiongenerator \$(BUILDDIR)/qthelp/artsigs.qhcp"
+	@echo "To view the help file:"
+	@echo "# assistant -collectionFile \$(BUILDDIR)/qthelp/artsigs.qhc"
+
+devhelp:
+	\$(SPHINXBUILD) -b devhelp \$(ALLSPHINXOPTS) \$(BUILDDIR)/devhelp
+	@echo
+	@echo "Build finished."
+	@echo "To view the help file:"
+	@echo "# mkdir -p \$\$HOME/.local/share/devhelp/artsigs"
+	@echo "# ln -s \$(BUILDDIR)/devhelp \$\$HOME/.local/share/devhelp/artsigs"
+	@echo "# devhelp"
+
+epub:
+	\$(SPHINXBUILD) -b epub \$(ALLSPHINXOPTS) \$(BUILDDIR)/epub
+	@echo
+	@echo "Build finished. The epub file is in \$(BUILDDIR)/epub."
+
+latex:
+	\$(SPHINXBUILD) -b latex \$(ALLSPHINXOPTS) \$(BUILDDIR)/latex
+	@echo
+	@echo "Build finished; the LaTeX files are in \$(BUILDDIR)/latex."
+	@echo "Run \`make' in that directory to run these through (pdf)latex" \\
+	      "(use \`make latexpdf' here to do that automatically)."
+
+latexpdf:
+	\$(SPHINXBUILD) -b latex \$(ALLSPHINXOPTS) \$(BUILDDIR)/latex
+	@echo "Running LaTeX files through pdflatex..."
+	make -C \$(BUILDDIR)/latex all-pdf
+	@echo "pdflatex finished; the PDF files are in \$(BUILDDIR)/latex."
+
+text:
+	\$(SPHINXBUILD) -b text \$(ALLSPHINXOPTS) \$(BUILDDIR)/text
+	@echo
+	@echo "Build finished. The text files are in \$(BUILDDIR)/text."
+
+man:
+	\$(SPHINXBUILD) -b man \$(ALLSPHINXOPTS) \$(BUILDDIR)/man
+	@echo
+	@echo "Build finished. The manual pages are in \$(BUILDDIR)/man."
+
+changes:
+	\$(SPHINXBUILD) -b changes \$(ALLSPHINXOPTS) \$(BUILDDIR)/changes
+	@echo
+	@echo "The overview file is in \$(BUILDDIR)/changes."
+
+linkcheck:
+	\$(SPHINXBUILD) -b linkcheck \$(ALLSPHINXOPTS) \$(BUILDDIR)/linkcheck
+	@echo
+	@echo "Link check complete; look for any errors in the above output " \\
+	      "or in \$(BUILDDIR)/linkcheck/output.txt."
+
+doctest:
+	\$(SPHINXBUILD) -b doctest \$(ALLSPHINXOPTS) \$(BUILDDIR)/doctest
+	@echo "Testing of doctests in the sources finished, look at the " \\
+	      "results in \$(BUILDDIR)/doctest/output.txt."
+EOF
+
+easy_install pip || exit 1
+pip install sphinx || exit 1
+pip install gunicorn || exit 1
+pip install -e $(pwd) || exit 1
+
+cp -aR ../lib/python*/site-packages/django/contrib/admin/media/admin $PROJ/media
+
+$PROJ-dev syncdb || exit 1
+
+make -C doc html
+
+cat <<EOF
+
+----------------------------------------------------------------------
+                              All Done!
+
+To get started you should run:
+
+    cd $PROJ/$PROJ
+    source ../bin/activate
+    $PROJ-dev runserver
+
+EOF

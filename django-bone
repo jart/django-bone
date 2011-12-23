@@ -39,6 +39,12 @@ echo "downloading $PROJ/media/$PROJ/js/jquery.js..."
 wget -qO $PROJ/media/$PROJ/js/jquery.js http://code.jquery.com/jquery.js || exit 1
 echo "downloading $PROJ/media/$PROJ/js/jquery.min.js..."
 wget -qO $PROJ/media/$PROJ/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
+echo "downloading $PROJ/media/$PROJ/js/script.js..."
+wget -qO $PROJ/media/$PROJ/js/script.js http://lobstertech.com.com/media/js/script.js || exit 1
+echo "downloading $PROJ/media/$PROJ/js/plugins.js..."
+wget -qO $PROJ/media/$PROJ/js/plugins.js http://lobstertech.com.com/media/js/plugins.js || exit 1
+echo "downloading $PROJ/media/$PROJ/js/modernizr.min.js..."
+wget -qO $PROJ/media/$PROJ/js/modernizr.min.js http://lobstertech.com.com/media/js/modernizr.min.js || exit 1
 
 echo "generating .gitignore..."
 cat >.gitignore <<EOF
@@ -579,22 +585,48 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
 <head>
   <meta charset="utf-8" />
   <title>{% block title %}$PROJ{% endblock title %}</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <link rel="shortcut icon" href="{{ MEDIA_URL }}$PROJ/img/favicon.png" />
   <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
   <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
-  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/$PROJ.css?v=1" type="text/css" media="all" />
+  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/style.css?v=2" type="text/css" media="all" />
+  <script src="{{ MEDIA_URL }}$PROJ/js/modernizr.min.js" type="text/javascript"></script>
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
-<body>
-  {% if DEBUG %}
-    <div id="devnotice">DEVELOPMENT MODE</div>
-  {% endif %}
+<body class="{% block body_class %}{% endblock %}">
   {% block body %}
+    <div id="header-container">
+      {% block header %}
+        <header class="wrapper clearfix">
+          <h1 id="title">h1#$PROJ</h1>
+          <nav>
+            <ul>
+              <li><a href="#">nav ul li a</a></li>
+              <li><a href="#">nav ul li a</a></li>
+              <li><a href="#">nav ul li a</a></li>
+            </ul>
+          </nav>
+        </header>
+      {% endblock header %}
+    </div>
+    <div id="main-container">
+      {% block content %}
+      {% endblock content %}
+    </div>
+    <div id="footer-container">
+      {% block footer %}
+        <footer class="wrapper">
+          <h3>footer</h3>
+        </footer>
+      {% endblock footer %}
+    </div>
   {% endblock body %}
   {% block scripts %}
     <script src="{{ MEDIA_URL }}$PROJ/js/jquery{% if not DEBUG %}.min{% endif %}.js" type="text/javascript"></script>
-    <script src="{{ MEDIA_URL }}$PROJ/js/$PROJ.js?v=1" type="text/javascript"></script>
+    <script src="{{ MEDIA_URL }}$PROJ/js/plugins.js" type="text/javascript"></script>
+    <script src="{{ MEDIA_URL }}$PROJ/js/script.js" type="text/javascript"></script>
+    <script src="{{ MEDIA_URL }}$PROJ/js/lolcat.js?v=1" type="text/javascript"></script>
   {% endblock scripts %}
   <script type="text/javascript">
     \$(function() {
@@ -609,29 +641,299 @@ EOF
 echo "generating $PROJ/templates/$PROJ/index.html"
 cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% extends "$PROJ/base.html" %}
-
-{% block body %}
-  <h1>hello kitty!</h1>
-{% endblock body %}
+{% block body_class %}index{% endblock body_class %}
+{% block content %}
+  <div id="main" class="wrapper clearfix">
+    <article>
+      <header>
+        <h1>article header h1</h1>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec.</p>
+      </header>
+      <section>
+        <h2>article section h2</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor. Etiam ullamcorper lorem dapibus velit suscipit ultrices. Proin in est sed erat facilisis pharetra.</p>
+      </section>
+      <section>
+        <h2>article section h2</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor. Etiam ullamcorper lorem dapibus velit suscipit ultrices. Proin in est sed erat facilisis pharetra.</p>
+      </section>
+      <footer>
+        <h3>article footer h3</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor.</p>
+      </footer>
+    </article>
+    <aside>
+      <h3>aside</h3>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam sodales urna non odio egestas tempor. Nunc vel vehicula ante. Etiam bibendum iaculis libero, eget molestie nisl pharetra in. In semper consequat est, eu porta velit mollis nec. Curabitur posuere enim eget turpis feugiat tempor. Etiam ullamcorper lorem dapibus velit suscipit ultrices.</p>
+    </aside>
+  </div>
+{% endblock content %}
 EOF
 
-echo "generating $PROJ/media/$PROJ/css/$PROJ.css..."
-cat >$PROJ/media/$PROJ/css/$PROJ.css <<EOF
-body { margin-left: auto; margin-right: auto; width: 960px;
-       font: 16px Arial, sans-serif; }
-header, nav, h1, h2, h3, h4 { font-family: Arial, sans-serif; }n
-img { border: none; }
-a { text-decoration: none; }
-textarea { font-family: Arial, sans-serif; }
-code, pre { font: 11px "DejaVu Sans Mono", Monaco, "Courier New", Courier, monospace; }
-pre { margin: 0 1em; }
+echo "generating $PROJ/media/$PROJ/css/style.css..."
+cat >$PROJ/media/$PROJ/css/style.css <<EOF
+/* HTML5 ✰ Boilerplate
+ * ==|== normalize ==========================================================
+ */
 
-.bad { color: #a00; font-size: small; font-weight: bold; }
-.good { color: #0a0; font-size: small; font-weight: bold; }
-.finetext { font-size: small; color: #666; }
+article, aside, details, figcaption, figure, footer, header, hgroup, nav, section { display: block; }
+audio, canvas, video { display: inline-block; *display: inline; *zoom: 1; }
+audio:not([controls]) { display: none; }
+[hidden] { display: none; }
 
-#devnotice { position: absolute; top: 0; left: 0; width: 100%; color: red; font-weight: bold;
-             text-align: center; z-order: 666; }
+html { font-size: 100%; overflow-y: scroll; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+body { margin: 0; font-size: 13px; line-height: 1.231; }
+body, button, input, select, textarea { font-family: sans-serif; color: #222; }
+
+::-moz-selection { background: #fe57a1; color: #fff; text-shadow: none; }
+::selection { background: #fe57a1; color: #fff; text-shadow: none; }
+
+a { color: #00e; }
+a:visited { color: #551a8b; }
+a:hover { color: #06e; }
+a:focus { outline: thin dotted; }
+a:hover, a:active { outline: 0; }
+
+abbr[title] { border-bottom: 1px dotted; }
+b, strong { font-weight: bold; }
+blockquote { margin: 1em 40px; }
+dfn { font-style: italic; }
+hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin: 1em 0; padding: 0; }
+ins { background: #ff9; color: #000; text-decoration: none; }
+mark { background: #ff0; color: #000; font-style: italic; font-weight: bold; }
+pre, code, kbd, samp { font-family: monospace, monospace; _font-family: 'courier new', monospace; font-size: 1em; }
+pre { white-space: pre; white-space: pre-wrap; word-wrap: break-word; }
+q { quotes: none; }
+q:before, q:after { content: ""; content: none; }
+small { font-size: 85%; }
+sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+sup { top: -0.5em; }
+sub { bottom: -0.25em; }
+ul, ol { margin: 1em 0; padding: 0 0 0 40px; }
+dd { margin: 0 0 0 40px; }
+nav ul, nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
+img { border: 0; -ms-interpolation-mode: bicubic; vertical-align: middle; }
+svg:not(:root) { overflow: hidden; }
+figure { margin: 0; }
+
+form { margin: 0; }
+fieldset { border: 0; margin: 0; padding: 0; }
+label { cursor: pointer; }
+legend { border: 0; *margin-left: -7px; padding: 0; }
+button, input, select, textarea { font-size: 100%; margin: 0; vertical-align: baseline; *vertical-align: middle; }
+button, input { line-height: normal; *overflow: visible; }
+table button, table input { *overflow: auto; }
+button, input[type="button"], input[type="reset"], input[type="submit"] { cursor: pointer; -webkit-appearance: button; }
+input[type="checkbox"], input[type="radio"] { box-sizing: border-box; }
+input[type="search"] { -webkit-appearance: textfield; -moz-box-sizing: content-box; -webkit-box-sizing: content-box; box-sizing: content-box; }
+input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+button::-moz-focus-inner, input::-moz-focus-inner { border: 0; padding: 0; }
+textarea { overflow: auto; vertical-align: top; resize: vertical; }
+input:valid, textarea:valid {  }
+input:invalid, textarea:invalid { background-color: #f0dddd; }
+
+table { border-collapse: collapse; border-spacing: 0; }
+td { vertical-align: top; }
+
+
+/* ===================================================
+    Initializr styles
+    http://verekia.com/initializr/responsive-template
+    Author: Jonathan Verrecchia
+   =================================================== */
+
+body{ font:16px/24px Helvetica, Helvetica Neue, Arial, sans-serif; }
+
+.wrapper{
+	width:90%;
+	margin:0 5%;
+}
+
+/* ===================
+    ALL: Orange Theme
+   =================== */
+
+#header-container{ border-bottom: 20px solid #e44d26; }
+#footer-container{ border-top:    20px solid #e44d26; }
+#main aside      { border-top:    20px solid #e44d26; }
+
+#header-container,
+#footer-container,
+#main aside{
+	background:#f16529;
+}
+
+#title{ color:white; }
+
+::-moz-selection { background: #f16529; color: #fff; text-shadow: none; }
+::selection      { background: #f16529; color: #fff; text-shadow: none; }
+
+/* ==============
+    MOBILE: Menu
+   ============== */
+
+nav a{
+	display:block;
+	margin-bottom:10px;
+	padding:15px 0;
+
+	background:#e44d26;
+	color:white;
+
+	text-align:center;
+	text-decoration:none;
+	font-weight:bold;
+}
+
+nav a:hover, nav a:visited{
+	color:white;
+}
+
+nav a:hover{
+	text-decoration:underline;
+}
+
+/* ==============
+    MOBILE: Main
+   ============== */
+
+#main{
+	padding:30px 0;
+}
+
+#main article h1{
+	font-size:2em;
+}
+
+#main aside{
+	color:white;
+	padding:0px 5% 10px;
+}
+
+#footer-container footer{
+	color:white;
+	padding:20px 0;
+}
+
+/* ===============
+    ALL: IE Fixes
+   =============== */
+
+.ie7 #title{ padding-top:20px; }
+
+
+/* ==|== non-semantic helper classes ======================================== */
+.ir { display: block; border: 0; text-indent: -999em; overflow: hidden; background-color: transparent; background-repeat: no-repeat; text-align: left; direction: ltr; }
+.ir br { display: none; }
+.hidden { display: none !important; visibility: hidden; }
+.visuallyhidden { border: 0; clip: rect(0 0 0 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; }
+.visuallyhidden.focusable:active, .visuallyhidden.focusable:focus { clip: auto; height: auto; margin: 0; overflow: visible; position: static; width: auto; }
+.invisible { visibility: hidden; }
+.clearfix:before, .clearfix:after { content: ""; display: table; }
+.clearfix:after { clear: both; }
+.clearfix { zoom: 1; }
+
+
+/* ==|== media queries ====================================================== */
+
+@media only screen and (min-width: 480px) {
+
+/* ====================
+    INTERMEDIATE: Menu
+   ==================== */
+	
+	nav a{
+		float:left;
+		width:27%;
+		margin:0 1.7%;
+		padding:25px 2%;
+		margin-bottom:0;
+	}
+	
+	nav li:first-child a{ margin-left:0;  }
+	nav li:last-child  a{ margin-right:0; }
+	
+/* ========================
+    INTERMEDIATE: IE Fixes
+   ======================== */
+
+	nav ul li{
+		display:inline;
+	}	
+	.oldie nav a{
+		margin:0 0.7%;		
+	}
+}
+
+@media only screen and (min-width: 768px) {
+
+/* ====================
+    WIDE: CSS3 Effects
+   ==================== */
+
+	#header-container,
+	#main aside{
+		-webkit-box-shadow:0 5px 10px #aaa;
+		   -moz-box-shadow:0 5px 10px #aaa;
+		        box-shadow:0 5px 10px #aaa;
+	}
+
+/* ============
+    WIDE: Menu
+   ============ */
+	
+	#title{
+		float:left;
+	}
+
+	nav{
+		float:right;
+		width:38%;
+	}
+
+/* ============
+    WIDE: Main
+   ============ */
+
+	#main article{
+		float:left;
+		width:57%;
+	}
+		
+	#main aside{
+		float:right;
+		width:28%;
+	}
+}
+
+@media only screen and (min-width: 1140px) {
+
+/* ===============
+    Maximal Width
+   =============== */
+
+	.wrapper{
+		width:1026px; /* 1140px - 10% for margins */
+		margin:0 auto;
+	}
+}
+
+/* ==|== print styles ======================================================= */
+ 
+@media print {
+  * { background: transparent !important; color: black !important; text-shadow: none !important; filter:none !important; -ms-filter: none !important; } 
+  a, a:visited { text-decoration: underline; }
+  a[href]:after { content: " (" attr(href) ")"; }
+  abbr[title]:after { content: " (" attr(title) ")"; }
+  .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after { content: ""; } 
+  pre, blockquote { border: 1px solid #999; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr, img { page-break-inside: avoid; }
+  img { max-width: 100% !important; }
+  @page { margin: 0.5cm; }
+  p, h2, h3 { orphans: 3; widows: 3; }
+  h2, h3 { page-break-after: avoid; }
+}
 EOF
 
 echo "generating conf/nginx/$PROJ.dev.conf..."
@@ -1195,6 +1497,11 @@ cp -aR ../lib/python*/site-packages/django/contrib/admin/media/admin $PROJ/media
 $PROJ-dev syncdb || exit 1
 
 make -C doc html
+
+git init
+git add .
+git commit -m "django-bone initial import" \
+           --author="Justine Tunney <jtunney@lobstertech.com>"
 
 cat <<EOF
 

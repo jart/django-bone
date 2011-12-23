@@ -17,9 +17,9 @@ Starting a new Django project?  django-bone will save you a day's
 worth of work by generating all the annoying boilerplate code for you.
 One simple command is all that's needed to set up everything you'd
 expect from a bona-fide python project: standard source code layout,
-setup.py, sphinx documentation, unit tests, virtualenv, db migrations,
-nginx config, init.d file, jquery, deployment scripts, pretty css,
-etc.
+setup.py, sphinx documentation, unit tests, version control,
+virtualenv, db migrations, nginx config, init.d file, jquery,
+deployment scripts, pretty css, etc.
 
 
 Usage

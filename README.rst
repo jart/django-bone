@@ -13,13 +13,17 @@
 About
 =====
 
-Starting a new Django project?  django-bone will save you a day's
-worth of work by generating all the annoying boilerplate code for you.
-One simple command is all that's needed to set up everything you'd
-expect from a bona-fide python project: standard source code layout,
-setup.py, sphinx documentation, unit tests, version control,
-virtualenv, db migrations, nginx config, init.d file, jquery,
-deployment scripts, pretty css, etc.
+Starting a new Django project?  django-bone will save you a day's worth of
+work by generating all the annoying boilerplate code for you.  One simple
+command is all that's needed to set up everything you'd expect from a
+bona-fide python project: a setup file, documentation, unit tests, version
+control, virtualenv, db migrations, snazzy html5 boilerplate, js/css
+minimization, deployment scripts, init.d file, etc.
+
+django-bone tries to follow popular coding conventions as much as possible.
+The primary exception is that I've removed the ``manage.py`` hack.  One of my
+biggest pet peeves about the Django community is that no one takes the time to
+write ``setup.py`` files and
 
 
 Usage
@@ -40,43 +44,43 @@ Create a new project::
 
 Your project will be configured to use the following tools/libraries:
 
-- south: The standard for managing database schema changes and
-  migrations.  It's one of the best third party libraries available
-  for Django and is so easy to use that I can't possibly imagine why
-  you *wouldn't* want to use it.
+- south: The standard for managing database schema changes and migrations.
+  It's one of the best third party libraries available for Django and is so
+  easy to use that I can't possibly imagine why you *wouldn't* want to use it.
 
-- django-debug-toolbar: A very popular tool for debugging everything.
-  This will magically appear when in development mode.
+- django-debug-toolbar: A very popular tool for debugging everything.  This
+  will magically appear when in development mode.
 
-- virtualenv: Excellent and very popular tool for compartmentalizing
-  python software installations.
+- sphinx: Generates the prettiest documentation.
 
-- pip: The successor of easy_install.
+- pip/virtualenv: The smartest way to install unstable Python software.
 
-- sphinx: The standard for documentation.
+- jquery: Who doesn't use jquery?
 
-Here are the files django-bone generates for you:
+- modernizr: Helps you use hip HTML5 features with cross browser support.
+
+Here's the files django-bone generates for you:
 
 - ``README.rst``: A simple README file using RestructuredText markup.
 
 - ``doc/index.rst``: Your main sphinx documentation page.
 
-- ``setup.py``: All Python projects should have this!  Even if you
-  don't want to put your program on the cheese shop.
+- ``setup.py``: All Python projects should have this!  Even if you don't want
+  to put your program on the cheese shop.
 
-- ``scripts/myapp``: Command that gets installed to your bin/ folder.
-  This replaces ``./manage.py --settings=myapp.settings``.
+- ``scripts/myapp``: Command that gets installed to your bin/ folder.  This
+  replaces ``./manage.py --settings=myapp.settings``.
 
-- ``scripts/myapp-dev``: Command that gets installed to your bin/
-  folder.  This replaces ``./manage.py --settings=myapp.settings_dev``.
+- ``scripts/myapp-dev``: Command that gets installed to your bin/ folder.
+  This replaces ``./manage.py --settings=myapp.settings_dev``.
 
 - ``.gitignore``: Preloaded with a list I've built over the years.
 
-- ``conf/init.d/myapp``: This is a script for linux systems to
-  automate starting/stopping the gunicorn backend webserver.
+- ``conf/init.d/myapp``: This is a script for linux systems to automate
+  starting/stopping the gunicorn backend webserver.
 
-- ``conf/nginx/myapp.com.conf``: Shows you how to configure nginx to
-  reverse proxy to your gunicorn server.
+- ``conf/nginx/myapp.com.conf``: Shows you how to configure nginx to reverse
+  proxy to your gunicorn server.
 
 - ``myapp/urls.py``: A simple URL dispatcher.
 
@@ -93,25 +97,24 @@ Here are the files django-bone generates for you:
 
 - ``myapp/settings_local.py``: Overload settings ONLY for this install.
 
-- ``myapp/tests.py``: Provides a few simple regression tests to make
-  it easy for you to get you started with automated testing.  If you
-  don't write tests, now's the time to start because not doing so is
-  irresponsible engineering.
+- ``myapp/tests.py``: Provides a few simple regression tests to make it easy
+  for you to get you started with automated testing.  Only amateur software
+  engineers forget to write tests so I figured you might want these.
 
 - ``myapp/admin.py``: Gets you started customizing Django admin gui.
 
-- ``myapp/media/myapp/js/jquery.min.js``: How could we live without it?
+- ``myapp/management/commands/minify.py``: A happy js/css/png minify command.
 
-- ``myapp/media/myapp/css/myapp.js``: A basic stylesheet.
+- ``myapp/templates/myapp/base.html``: Master HTML5 template based on
+  html5boilerplate.com
 
-- ``myapp/media/myapp/img/favicon.png``: Anarchist symbolism.
+- ``myapp/templates/myapp/index.html``: Home page (overrides base.html)
 
-- ``myapp/templates/myapp/base.html``: Master HTML file.
+- ``myapp/media/myapp/css/myapp.css``: Main CSS file based off normalize.css
+  and html5boilerplate.com
 
-- ``myapp/templates/myapp/index.html``: Home page that overrides base.html.
+- ``myapp/media/myapp/js/myapp.js``: Placeholder for your javascript code.
 
 - ``myapp/templates/404.html``: Page not found page.
 
 - ``myapp/templates/500.html``: Internal server error page.
-
-- ``myapp/management/commands/example.py``: Example subcommand.

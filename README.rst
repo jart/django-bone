@@ -21,9 +21,9 @@ control, virtualenv, db migrations, snazzy html5 boilerplate, js/css
 minimization, deployment scripts, init.d file, etc.
 
 django-bone tries to follow popular coding conventions as much as possible.
-The primary exception is that I've removed the ``manage.py`` hack.  One of my
-biggest pet peeves about the Django community is that no one takes the time to
-write ``setup.py`` files and
+The primary exception is that I've removed the ``manage.py`` hack because it's
+always made me sad that so few Django developers take the time to write
+``setup.py`` files like the rest of the python community :(
 
 
 Usage

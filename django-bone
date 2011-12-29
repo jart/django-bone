@@ -238,7 +238,7 @@ ADMINS = (
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "$PROJ.sqlite3",
+        "NAME": os.path.join(project_root, "$PROJ.sqlite3"),
     },
 }
 

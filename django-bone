@@ -597,8 +597,8 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   <link rel="shortcut icon" href="{{ MEDIA_URL }}$PROJ/img/favicon.png" />
   <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
   <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
-  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/$PROJ.css?v=2" type="text/css" media="all" />
-  <script src="{{ MEDIA_URL }}js/modernizr{% if not debug %}.min{% endif %}.js" type="text/javascript"></script>
+  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/$PROJ{% if not debug %}.min{% endif %}.css?v=2" type="text/css" media="all" />
+  <script src="{{ MEDIA_URL }}js/modernizr{% if not debug %}.min{% endif %}.js"></script>
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
@@ -631,10 +631,10 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
     </div>
   {% endblock body %}
   {% block scripts %}
-    <script src="{{ MEDIA_URL }}js/jquery{% if not debug %}.min{% endif %}.js" type="text/javascript"></script>
-    <script src="{{ MEDIA_URL }}$PROJ/js/$PROJ{% if not debug %}.min{% endif %}.js?v=1" type="text/javascript"></script>
+    <script src="{{ MEDIA_URL }}js/jquery{% if not debug %}.min{% endif %}.js"></script>
+    <script src="{{ MEDIA_URL }}$PROJ/js/$PROJ{% if not debug %}.min{% endif %}.js?v=1"></script>
   {% endblock scripts %}
-  <script type="text/javascript">
+  <script>
     \$(function() {
       {% block js_init %}
       {% endblock js_init %}

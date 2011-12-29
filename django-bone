@@ -1430,8 +1430,8 @@ echo "generating doc/index.rst..."
 cat >doc/index.rst <<EOF
 .. include:: ../README.rst
 
-Source Code
-===========
+Modules
+=======
 
 .. automodule:: $PROJ.models
    :members:

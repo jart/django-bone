@@ -942,9 +942,51 @@ nav a:hover{
 }
 EOF
 
-echo "generating conf/nginx/$PROJ.dev.conf..."
-cat >conf/nginx/$PROJ.dev.conf <<EOF
+echo "generating conf/nginx/nginx.conf..."
+cat >conf/nginx/nginx.conf <<EOF
 # -*-conf-*-
+user www-data;
+worker_processes 2;
+
+error_log  /var/log/nginx/error.log;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+    # multi_accept on;
+}
+
+http {
+    include              /etc/nginx/mime.types;
+    access_log           /var/log/nginx/access.log;
+    sendfile             on;
+    keepalive_timeout    65;
+    tcp_nodelay          on;
+    charset              utf-8;
+    ssl_session_cache    shared:SSL:2m;
+    ssl_session_timeout  10m;
+    limit_req_zone       $binary_remote_addr zone=one:10m rate=60r/m;
+
+    gzip on;
+    gzip_disable "MSIE [1-6]\.(?!.*SV1)";
+    gzip_types text/html text/css text/xml application/x-javascript;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+EOF
+
+echo "generating conf/nginx/$PROJ.conf..."
+cat >conf/nginx/$PROJ.conf <<EOF
+# -*-conf-*-
+# /etc/nginx/sites-available/$PROJ.conf
+#
+# To Enable:
+#
+#   cd /etc/nginx/sites-enabled
+#   sudo ln -sf ../sites-available/$PROJ.conf
+#   sudo /etc/init.d/nginx reload
+#
 
 upstream $PROJ {
   server 127.0.0.1:7000;
@@ -956,19 +998,28 @@ server {
   server_name_in_redirect on;
   access_log off;
 
+  # # also listen for https requests
+  # listen [::]:443 default ssl;
+  # ssl_prefer_server_ciphers on;
+  # ssl_protocols SSLv3;
+  # ssl_ciphers HIGH:!ADH:!MD5;
+  # ssl_certificate /etc/ssl/$PROJ.com/crt-cabundle;
+  # ssl_certificate_key /etc/ssl/$PROJ.com/key;
+
+  # # get rid of www.
+  # if (\$host !~* ^$PROJ\.com\$) {
+  #   rewrite ^(.*)\$ http://$PROJ.com\$1 redirect;
+  # }
+
   location ~ /\. { deny all; }
   location = /favicon.ico { access_log off; return 404; }
   location = /robots.txt  { access_log off; return 404; }
   location = /sitemap.xml { access_log off; return 404; }
 
-  # if (\$host !~* ^$PROJ\.com\$) {
-  #   rewrite ^(.*)\$ http://$PROJ.org\$1 redirect;
-  # }
-
   location /media/ {
     root $(pwd)/$PROJ;
-    # expires 1y;
-    # add_header Cache-Control public;
+    expires 1y;
+    add_header Cache-Control public;
     # autoindex on;
     # autoindex_localtime on;
   }
@@ -976,9 +1027,11 @@ server {
   location / {
     proxy_redirect off;
     proxy_pass http://$PROJ;
-    proxy_set_header X-Forwarded-For \$remote_addr;
+    proxy_set_header X-Forwarded-For  \$remote_addr;
     proxy_set_header X-Forwarded-Host \$PROJ.com;
+    proxy_set_header X-Forwarded-Port \$server_port;
     proxy_connect_timeout 5000ms;
+    limit_req zone=one burst=10;
   }
 }
 EOF

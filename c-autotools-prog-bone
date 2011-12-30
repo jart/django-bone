@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Generates C Program Project Skeletons Simply and Properly
+# Generates C99 Program Project Skeletons Simply and Properly
 # Justine Tunney <jtunney@lobstertech.com>
 # Licensed MIT
 #
@@ -24,7 +24,7 @@ function ask {
 if [[ -e $PROJ ]]; then echo "$PROJ already exists!" >&2; exit 1; fi
 [[ $DESCRIP ]]   || ask DESCRIP "description?" "$PROJ"
 [[ $LIBS ]]      || ask LIBS "libraries? (space delimited)"
-for s in $LIBS; do pkg-config $s || exit $?; done
+for s in $LIBS; do pkg-config $s --cflags >/dev/null || exit $?; done
 [[ $OBJS ]]      || ask OBJS "objects? (space delimited)"
 [[ $EMAIL ]]     || ask EMAIL "author email?" "$(git config user.email)" "$USER@$(hostname -f)"
 [[ $AUTHOR ]]    || ask AUTHOR "author name?" "$(git config user.name)" "$USER"
@@ -291,9 +291,6 @@ cat >src/${PROJ}_private.h <<EOF
 #include <netdb.h>
 #include <sched.h>
 
-#include "bstrlib.h"
-#include "log.h"
-
 EOF
 
 for s in $LIBS; do
@@ -335,6 +332,8 @@ if echo $LIBS | grep sofia-sip-ua >/dev/null; then
 #include <sofia-sip/su_uniqueid.h>
 #include <sofia-sip/su_localinfo.h>
 
+#include "bstrlib.h"
+#include "log.h"
 EOF
 fi
 
@@ -343,6 +342,7 @@ for NAME in $OBJS; do
 done
 
 cat >>src/${PROJ}_private.h <<EOF
+
 /* For Emacs:
  * Local Variables:
  * indent-tabs-mode:nil

@@ -485,8 +485,7 @@ from $PROJ import models as db
 
 
 class AdminSite(admin.AdminSite):
-    """Overriden Django AdminSite Object
-    """
+    """Overriden Django AdminSite Object"""
 
     def __init__(self, *args, **kwargs):
         admin.AdminSite.__init__(self, *args, **kwargs)
@@ -546,16 +545,14 @@ from $PROJ import models as db
 
 
 def index(request):
-    """I render the home page
-    """
+    """I render the home page"""
     return render_to_response(
         "$PROJ/index.html", {},
         context_instance=RequestContext(request))
 
 
 def error(request):
-    """A view that's designed to fail
-    """
+    """A view that's designed to fail"""
     assert False
 EOF
 

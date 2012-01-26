@@ -48,6 +48,10 @@ Your project will be configured to use the following tools/libraries:
   It's one of the best third party libraries available for Django and is so
   easy to use that I can't possibly imagine why you *wouldn't* want to use it.
 
+- reversion: Allows you to enable version control on your models in the Django
+  Admin.  The generated Article model (commented-out) serves as an example of
+  how to use this.
+
 - django-debug-toolbar: A very popular tool for debugging everything.  This
   will magically appear when in development mode.
 

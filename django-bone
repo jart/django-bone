@@ -102,8 +102,9 @@ setup(
     author               = "$AUTHOR",
     author_email         = "$EMAIL",
     license              = "$LICENSE",
-    install_requires     = ["Django", "south", "python-memcached", "cssmin",
-                            "slimit", "django-debug-toolbar"],
+    install_requires     = ["Django>=1.4", "south", "django-reversion",
+                            "python-memcached", "django-debug-toolbar",
+                            "cssmin", "slimit"],
     packages             = find_packages(),
     include_package_data = True,
     zip_safe             = False,
@@ -289,6 +290,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.admin",
     "south",
+    "reversion",
 ]
 
 LOGGING = {
@@ -477,6 +479,7 @@ r"""
 
 """
 
+import reversion
 from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
@@ -485,15 +488,22 @@ from $PROJ import models as db
 
 
 class AdminSite(admin.AdminSite):
-    """Overriden Django AdminSite Object"""
+    """Subclassed admin site (to avoid running code in global scope)"""
 
     def __init__(self, *args, **kwargs):
         admin.AdminSite.__init__(self, *args, **kwargs)
         self.register(User, UserAdmin)
         self.register(Group, GroupAdmin)
+        # self.register(db.Article, ArticleAdmin)
 
 
-site = AdminSite(name="${PROJ}admin")
+# class ArticleAdmin(reversion.VersionAdmin):
+#     """Version controlled blog entry manager for Django Admin"""
+#     list_display = ('title', 'author', 'published', 'is_published')
+#     list_filter = ('is_visible',)
+#     search_fields = ('title', 'content', 'author__username')
+#     prepopulated_fields = {"slug": ("title",)}
+#     history_latest_first = True
 EOF
 
 echo "generating $PROJ/urls.py..."
@@ -511,12 +521,15 @@ from django.conf import settings
 from django.conf.urls.defaults import patterns, url, include
 from django.views.decorators.http import require_GET, require_POST
 
-from $PROJ import admin
+from $PROJ.admin import AdminSite
+
+adminsite = AdminSite(name="${PROJ}_admin")
 
 urlpatterns = patterns("",
     url(r"^$", "$PROJ.views.index", name="index"),
+    # url(r"^article/(?P<slug>[-_\d\w]+)/$", "$PROJ.views.article", name="article"),
     url(r"^error/$", "$PROJ.views.error", name="error"),
-    url(r"^admin/", include(admin.site.urls)),
+    url(r"^admin/", include(adminsite.urls)),
 )
 
 if settings.DEBUG:
@@ -568,6 +581,32 @@ r"""
 """
 
 from django.db import models
+from django.contrib.auth.models import User
+
+
+# class Article(models.Model):
+#     """An example table for storing your blog entries"""
+#     author = models.ForeignKey(User, help_text="""
+#         The user who wrote this article.""")
+#     title = models.CharField(max_length=255, help_text="""
+#         A one-line title to describe article.""")
+#     slug = models.SlugField(unique=True, help_text="""
+#         A label for this article to appear in the url.  DO NOT change
+#         this once the article has been published.""")
+#     published = models.DateTimeField(help_text="""
+#         When was article was published?""")
+#     content = models.TextField(blank=True, help_text="""
+#         The contents of the article""")
+#     is_published = models.BooleanField(default=False, help_text="""
+#         Should it be listed on the website and syndicated?""")
+#
+#     def __unicode__(self):
+#         return "Article \"%s\" by %s" % (self.title, self.author)
+#
+#     @models.permalink
+#     def get_absolute_url(self):
+#         return ('article', [self.slug])
+
 EOF
 
 echo "generating $PROJ/templates/404.html"

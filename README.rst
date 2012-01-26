@@ -13,26 +13,35 @@
 About
 =====
 
-Starting a new Django project?  django-bone will save you a day's worth of
+Starting a new Django project?  django-bone will save you a few days worth of
 work by generating all the annoying boilerplate code for you.  One simple
 command is all that's needed to set up everything you'd expect from a
 bona-fide python project: a setup file, documentation, unit tests, version
 control, virtualenv, db migrations, snazzy html5 boilerplate, js/css
 minimization, deployment scripts, init.d file, etc.
 
-django-bone tries to follow popular coding conventions as much as possible.
-The primary exception is that I've removed the ``manage.py`` hack because it's
-always made me sad that so few Django developers take the time to write
-``setup.py`` files like the rest of the python community :(
+django-bone configures your code to follow what I believe to be the 'one true
+path' to django enlightenment, using design practices we've been refining for
+years.  Your project will also be configured with some of the greatest tools
+available which we feel are stable, not too unfamiliar, and have stood the
+test of time.
+
+Please note that the ``manage.py`` hack is removed because it's always made me
+sad that so few Django developers take the time to write ``setup.py`` files
+like the rest of the python community :( Instead of ``manage.py`` you'll run a
+command named after your project.
 
 
 Usage
 =====
 
-Installation::
+Install the script and make some minor system changes::
 
-    sudo cp -a django-bone /usr/local/bin
-    sudo chmod go+rwt /opt  # let people create *NEW* files in /opt
+    sudo ./install.sh
+    sudo easy_install -U pip
+    sudo pip install -U virtualenv
+    sudo chmod go+rwt /opt  # let people create new files in /opt
+    export PIP_DOWNLOAD_CACHE=~/.pip/cache
 
 Create a new project::
 
@@ -42,7 +51,7 @@ Create a new project::
     source ../bin/activate
     myapp-dev runserver
 
-Your project will be configured to use the following tools/libraries:
+The following tools and libraries will also be configured:
 
 - south: The standard for managing database schema changes and migrations.
   It's one of the best third party libraries available for Django and is so
@@ -55,13 +64,25 @@ Your project will be configured to use the following tools/libraries:
 - django-debug-toolbar: A very popular tool for debugging everything.  This
   will magically appear when in development mode.
 
-- sphinx: Generates the prettiest documentation.
+- sphinx: Generates the prettiest documentation.  Inline autodoc style is used
+  by the generated code.
 
 - pip/virtualenv: The smartest way to install unstable Python software.
 
 - jquery: Who doesn't use jquery?
 
 - modernizr: Helps you use hip HTML5 features with cross browser support.
+
+Django 1.4 is used with the following cool features configured:
+
+- Time zone awareness
+- The secure password hashing extension I wrote!
+- Cross-site request forgery (CSRF) protection
+- Browser-side session data storage (signed cookies)
+- Internationalization (localization must be used explicitly)
+- Static file framework
+- Logging / error reporting system
+- Memcached and cached template loading
 
 Here's the files django-bone generates for you:
 

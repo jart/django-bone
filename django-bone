@@ -24,32 +24,33 @@ source bin/activate
 mkdir $PROJ
 cd $PROJ
 
+mkdir -p ../{run,static}
 mkdir -p scripts
 mkdir -p conf/{init.d,nginx}
 mkdir -p doc/{_build,_static,_templates}
 mkdir -p $PROJ/templates/$PROJ
-mkdir -p $PROJ/media/{img,css,js}
-mkdir -p $PROJ/media/$PROJ/{img,css,js}
+mkdir -p $PROJ/static/{img,css,js}
+mkdir -p $PROJ/static/$PROJ/{img,css,js}
 mkdir -p $PROJ/management/commands
 
 echo "downloading ez_setup.py..."
 wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py || exit 1
-echo "downloading $PROJ/media/$PROJ/img/favicon.png..."
-wget -qO $PROJ/media/$PROJ/img/favicon.png https://we.riseup.net/favicon.png || exit 1
-echo "downloading $PROJ/media/js/jquery.js..."
-wget -qO $PROJ/media/js/jquery.js http://code.jquery.com/jquery.js || exit 1
-echo "downloading $PROJ/media/js/jquery.min.js..."
-wget -qO $PROJ/media/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
-echo "downloading $PROJ/media/js/modernizr.js..."
-wget -qO $PROJ/media/js/modernizr.js http://lobstertech.com/media/js/modernizr.js || exit 1
-echo "downloading $PROJ/media/js/modernizr.min.js..."
-wget -qO $PROJ/media/js/modernizr.min.js http://lobstertech.com/media/js/modernizr.min.js || exit 1
+echo "downloading $PROJ/static/$PROJ/img/favicon.png..."
+wget -qO $PROJ/static/$PROJ/img/favicon.png https://we.riseup.net/favicon.png || exit 1
+echo "downloading $PROJ/static/js/jquery.js..."
+wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js || exit 1
+echo "downloading $PROJ/static/js/jquery.min.js..."
+wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
+echo "downloading $PROJ/static/js/modernizr.js..."
+wget -qO $PROJ/static/js/modernizr.js http://lobstertech.com/media/js/modernizr.js || exit 1
+echo "downloading $PROJ/static/js/modernizr.min.js..."
+wget -qO $PROJ/static/js/modernizr.min.js http://lobstertech.com/media/js/modernizr.min.js || exit 1
 
 echo "generating .gitignore..."
 cat >.gitignore <<EOF
 settings_local.py
-$PROJ/media/$PROJ/js/*.min.js
-$PROJ/media/$PROJ/css/*.min.css
+$PROJ/static/$PROJ/js/*.min.js
+$PROJ/static/$PROJ/css/*.min.css
 core
 *.pyc
 *.pyo
@@ -66,7 +67,7 @@ core
 ._*
 .DS_Store
 Thumbs.db*
-docs/_build
+doc/_build
 .figleaf*
 *.egg-info
 *.egg
@@ -102,7 +103,7 @@ setup(
     author               = "$AUTHOR",
     author_email         = "$EMAIL",
     license              = "$LICENSE",
-    install_requires     = ["Django>=1.4", "south", "django-reversion",
+    install_requires     = ["Django", "south", "django-reversion",
                             "python-memcached", "django-debug-toolbar",
                             "cssmin", "slimit"],
     packages             = find_packages(),
@@ -127,35 +128,67 @@ cat >README.rst <<EOF
 :license:     $LICENSE
 
 
-Installation
-============
+Usage
+=====
 
-System-wide install::
+Install from git into a virtualenv::
 
-    sudo python setup.py install
-    $PROJ syncdb
-    $PROJ minify $PROJ
-    $PROJ test
-    $PROJ runserver
-
-Virtualenv git install::
-
+    sudo chmod go+rwt /opt  # let people create new files in /opt
+    cd /opt
     virtualenv $PROJ
     cd $PROJ/$PROJ
     source bin/activate
     git clone REPO_URL
     easy_install pip
+    pip install gunicorn
     pip install -e \$(pwd)
     $PROJ-dev syncdb
-    $PROJ-dev test
+    $PROJ-dev migrate
+
+The ritual for running in development mode::
+
+    $PROJ-dev test $PROJ
     $PROJ-dev runserver
 
-Documentation::
+Generate the documentation::
 
     pip install sphinx
     make -C doc html
     firefox doc/_build/html/index.html
 
+
+Production Mode
+---------------
+
+First you should update to the latest code::
+
+    git pull
+    pip install -e \$(pwd)
+    rm -f $(find . -name \*.pyc)
+    $PROJ migrate
+    $PROJ minify $PROJ
+    $PROJ collectstatic --noinput
+    $PROJ compilemessages
+
+Now install and configure nginx::
+
+    sudo apt-get install nginx
+    sudo ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
+    sudo /etc/init.d/nginx start
+
+Start the backend gunicorn webserver::
+
+    sudo cp conf/init.d/$PROJ /etc/init.d
+    sudo /etc/init.d/$PROJ start
+
+Now check it out by running ``firefox http://localhost/``!!!
+
+You can also run gunicorn manually::
+
+    gunicorn_django --bind=127.0.0.1:7000 --workers=4 $PROJ/settings.py
+
+When using PostgreSQL, it is strongly recommended that you configure pgbouncer
+on your system to significantly reduce request latency and memory consumption.
 EOF
 
 echo "generating scripts/$PROJ..."
@@ -215,19 +248,20 @@ project_root = dirname(abspath(__file__))
 DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 SECRET_KEY = "please change me to some wacky random value"
-MEDIA_ROOT = join(project_root, "media")
-MEDIA_URL = "/media/"
-STATIC_URL = "/media/"
+STATIC_ROOT = "/opt/$PROJ/static"
+STATIC_URL = "/static/"
 SITE_ID = 1
+DEFAULT_CHARSET = "utf-8"
 USE_I18N = True
 USE_L10N = False
-DEFAULT_CHARSET = "utf-8"
+USE_THOUSAND_SEPARATOR = True
+USE_TZ = True
+TIME_ZONE = "US/Eastern"
 ROOT_URLCONF = "$PROJ.urls"
-LOGIN_URL = "/login/"
-LOGOUT_URL = "/logout/"
-LOGIN_REDIRECT_URL = "/"
-ADMIN_MEDIA_PREFIX = "/media/admin/"
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+SESSION_COOKIE_HTTPONLY = True
 USE_X_FORWARDED_HOST = True
+
 BOLD = "\x1b[1m"
 GREEN = "\x1b[32m"
 RESET = "\x1b[0m"
@@ -287,6 +321,7 @@ INSTALLED_APPS = [
     "$PROJ",
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    'django.contrib.staticfiles',
     "django.contrib.sessions",
     "django.contrib.admin",
     "south",
@@ -354,6 +389,7 @@ from $PROJ.settings import *
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
+STATIC_URL = "/static-dev/"
 
 TEMPLATE_LOADERS = [
     "django.template.loaders.filesystem.Loader",
@@ -630,11 +666,11 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   <meta charset="utf-8" />
   <title>{% block title %}$PROJ{% endblock title %}</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <link rel="shortcut icon" href="{{ MEDIA_URL }}$PROJ/img/favicon.png" />
+  <link rel="shortcut icon" href="{{ STATIC_URL }}$PROJ/img/favicon.png" />
   <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
   <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
-  <link rel="stylesheet" href="{{ MEDIA_URL }}$PROJ/css/$PROJ{% if not debug %}.min{% endif %}.css?v=2" type="text/css" media="all" />
-  <script src="{{ MEDIA_URL }}js/modernizr{% if not debug %}.min{% endif %}.js"></script>
+  <link rel="stylesheet" href="{{ STATIC_URL }}$PROJ/css/$PROJ{% if not debug %}.min{% endif %}.css?v=2" type="text/css" media="all" />
+  <script src="{{ STATIC_URL }}js/modernizr{% if not debug %}.min{% endif %}.js"></script>
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
@@ -667,8 +703,8 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
     </div>
   {% endblock body %}
   {% block scripts %}
-    <script src="{{ MEDIA_URL }}js/jquery{% if not debug %}.min{% endif %}.js"></script>
-    <script src="{{ MEDIA_URL }}$PROJ/js/$PROJ{% if not debug %}.min{% endif %}.js?v=1"></script>
+    <script src="{{ STATIC_URL }}js/jquery{% if not debug %}.min{% endif %}.js"></script>
+    <script src="{{ STATIC_URL }}$PROJ/js/$PROJ{% if not debug %}.min{% endif %}.js?v=1"></script>
   {% endblock scripts %}
   <script>
     \$(function() {
@@ -712,8 +748,8 @@ cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% endblock content %}
 EOF
 
-echo "generating $PROJ/media/$PROJ/css/$PROJ.css..."
-cat >$PROJ/media/$PROJ/css/$PROJ.css <<EOF
+echo "generating $PROJ/static/$PROJ/css/$PROJ.css..."
+cat >$PROJ/static/$PROJ/css/$PROJ.css <<EOF
 /* HTML5 ✰ Boilerplate
  * ==|== normalize ==========================================================
  */
@@ -1019,8 +1055,7 @@ cat >conf/nginx/$PROJ.conf <<EOF
 #
 # To Enable:
 #
-#   cd /etc/nginx/sites-enabled
-#   sudo ln -sf ../sites-available/$PROJ.conf
+#   sudo ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
 #   sudo /etc/init.d/nginx reload
 #
 
@@ -1029,10 +1064,11 @@ upstream $PROJ {
 }
 
 server {
-  listen [::]:80 default;
+  listen [::]:80 default;  # listens on both IPv4 and IPv6
   server_name $PROJ.com www.$PROJ.com;
   server_name_in_redirect on;
-  access_log off;
+  access_log /var/log/$PROJ.com.log;
+  error_log /var/log/$PROJ.com.error.log error;
 
   # # also listen for https requests
   # listen [::]:443 default ssl;
@@ -1052,8 +1088,8 @@ server {
   location = /robots.txt  { access_log off; return 404; }
   location = /sitemap.xml { access_log off; return 404; }
 
-  location /media/ {
-    root $(pwd)/$PROJ;
+  location /static/ {
+    root ${VIRTUAL_ENV};
     expires 1y;
     add_header Cache-Control public;
     # autoindex on;
@@ -1089,10 +1125,11 @@ cat >conf/init.d/$PROJ <<EOF
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=$PROJ
 DESC=$PROJ
-DAEMON=$(pwd)/../bin/gunicorn_django
-PIDFILE=$(pwd)/../$PROJ.pid
-SETTINGS=$(pwd)/$PROJ/settings.py
-RUNAS=artists
+VIRTUAL_ENV=${VIRTUAL_ENV}
+DAEMON=\${VIRTUAL_ENV}/bin/gunicorn_django
+PIDFILE=\${VIRTUAL_ENV}/run/$PROJ.pid
+SETTINGS=\${VIRTUAL_ENV}/$PROJ/settings.py
+RUNAS=$USER
 WORKERS=5
 BIND=127.0.0.1:7000
 test -r /etc/default/$PROJ && . /etc/default/$PROJ
@@ -1127,14 +1164,15 @@ case "\$1" in
 	;;
 
   reload)
-        echo -n "Reloading \$DESC: "
-        start-stop-daemon --stop --signal HUP --pidfile \$PIDFILE
-        echo "\$NAME."
-        ;;
+    echo -n "Reloading \$DESC: "
+    start-stop-daemon --stop --signal HUP --pidfile \$PIDFILE
+    echo "\$NAME."
+    ;;
 
   status)
 	status_of_proc \$DAEMON \$NAME
 	;;
+
   *)
 	N=/etc/init.d/\$NAME
 	echo "Usage: \$N {start|stop|reload|restart|force-reload|status}" >&2
@@ -1155,8 +1193,8 @@ echo "generating $PROJ/management/commands/minify.py..."
 cat >$PROJ/management/commands/minify.py <<EOF
 r"""
 
-    $PROJ.management.commands.minify
-    $(echo $PROJ.management.commands.minify | sed s/./~/g)
+    $PROJ.cmd.minify
+    $(echo $PROJ.cmd.minify | sed s/./~/g)
 
     Minifies JS/CSS/PNG media files.
 
@@ -1673,13 +1711,29 @@ doctest:
 EOF
 
 easy_install pip || exit 1
-pip install sphinx || exit 1
-pip install gunicorn || exit 1
+
+## BEGIN TEMPORARY
+# install dev django until 1.4 is released
+# pip download cache doesn't work when installing from a repo :(
+mkdir -p $PIP_DOWNLOAD_CACHE
+pushd $PIP_DOWNLOAD_CACHE
+if [[ -d $PIP_DOWNLOAD_CACHE/django ]]; then
+    cd django
+    git pull || exit 1
+else
+    git clone git://github.com/django/django.git django || exit 1
+fi
+popd
+git clone $PIP_DOWNLOAD_CACHE/django ../django || exit 1
+pip install -e ../django || exit 1
+## END TEMPORARY
+
+pip install sphinx gunicorn pyflakes pep8 || exit 1
 pip install -e $(pwd) || exit 1
 
-cp -aR ../lib/python*/site-packages/django/contrib/admin/media/admin $PROJ/media
-
+$PROJ-dev collectstatic --noinput || exit 1
 $PROJ-dev syncdb || exit 1
+$PROJ-dev migrate || exit 1
 
 make -C doc html
 
@@ -1698,5 +1752,9 @@ To get started you should run:
     cd $PROJ/$PROJ
     source ../bin/activate
     $PROJ-dev runserver
+
+For further instructions:
+
+    firefox file://${VIRTUAL_ENV}/$PROJ/doc/_build/html/index.html
 
 EOF

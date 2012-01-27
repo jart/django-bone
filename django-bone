@@ -756,6 +756,10 @@ cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% endblock content %}
 EOF
 
+echo "generating $PROJ/static/$PROJ/js/$PROJ.js..."
+cat >$PROJ/static/$PROJ/js/$PROJ.js <<EOF
+EOF
+
 echo "generating $PROJ/static/$PROJ/css/$PROJ.css..."
 cat >$PROJ/static/$PROJ/css/$PROJ.css <<EOF
 /* HTML5 ✰ Boilerplate

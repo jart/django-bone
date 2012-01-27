@@ -33,6 +33,14 @@ mkdir -p $PROJ/static/{img,css,js}
 mkdir -p $PROJ/static/$PROJ/{img,css,js}
 mkdir -p $PROJ/management/commands
 
+# shortcuts to avoid directory hell
+ln -sf $PROJ/$PROJ ../code
+ln -sf $PROJ/$PROJ/templates/$PROJ ../html
+ln -sf $PROJ/$PROJ/templates/$PROJ ../html
+ln -sf $PROJ/$PROJ/static/$PROJ/css ../css
+ln -sf $PROJ/$PROJ/static/$PROJ/img ../img
+ln -sf $PROJ/$PROJ/static/$PROJ/js ../js
+
 echo "downloading ez_setup.py..."
 wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py || exit 1
 echo "downloading $PROJ/static/$PROJ/img/favicon.png..."

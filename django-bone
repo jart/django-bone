@@ -51,8 +51,16 @@ echo "downloading $PROJ/static/js/jquery.min.js..."
 wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
 echo "downloading $PROJ/static/js/modernizr.js..."
 wget -qO $PROJ/static/js/modernizr.js http://lobstertech.com/media/js/modernizr.js || exit 1
-echo "downloading $PROJ/static/js/modernizr.min.js..."
-wget -qO $PROJ/static/js/modernizr.min.js http://lobstertech.com/media/js/modernizr.min.js || exit 1
+echo "downloading $PROJ/static/js/less.min.js..."
+wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js || exit 1
+echo "downloading $PROJ/static/js/coffee-script.min.js..."
+wget -qO $PROJ/static/js/coffee-script.min.js http://coffeescript.org/extras/coffee-script.js || exit 1
+
+pushd $PROJ/static >/dev/null 2>&1
+echo "Installing Twitter Bootstrap from Git"
+git clone https://github.com/twitter/bootstrap.git || exit $?
+rm -rf bootstrap/.git
+popd >/dev/null 2>&1
 
 echo "generating .gitignore..."
 cat >.gitignore <<EOF
@@ -223,10 +231,10 @@ dev:
 
 pro:
 	pip install -e .
-#	lessc $PROJ/static/$PROJ/css/$PROJ.less \
-#		$PROJ/static/$PROJ/css/$PROJ.css
-#	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \
-#		$PROJ/static/$PROJ/css/$PROJ.min.css
+	lessc $PROJ/static/$PROJ/css/$PROJ.less \
+		$PROJ/static/$PROJ/css/$PROJ.css
+	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \
+		$PROJ/static/$PROJ/css/$PROJ.min.css
 	coffee -o $PROJ/static/$PROJ/js \
 		$PROJ/static/$PROJ/js/$PROJ.coffee
 	$PROJ migrate
@@ -565,12 +573,12 @@ r"""
 
 """
 
-import reversion
+# import reversion
 from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
 
-from $PROJ import models as db
+# from $PROJ import models as db
 
 
 class AdminSite(admin.AdminSite):
@@ -636,11 +644,11 @@ r"""
 
 """
 
-from django.conf import settings
+# from django.conf import settings
 from django.template import RequestContext
 from django.shortcuts import render_to_response
 
-from $PROJ import models as db
+# from $PROJ import models as db
 
 
 def index(request):
@@ -666,8 +674,8 @@ r"""
 
 """
 
-from django.db import models
-from django.contrib.auth.models import User
+# from django.db import models
+# from django.contrib.auth.models import User
 
 
 # class Article(models.Model):
@@ -692,7 +700,6 @@ from django.contrib.auth.models import User
 #     @models.permalink
 #     def get_absolute_url(self):
 #         return ('article', [self.slug])
-
 EOF
 
 echo "generating $PROJ/templates/404.html"
@@ -719,49 +726,43 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   <link rel="shortcut icon" href="{{ STATIC_URL }}$PROJ/img/favicon.png" />
   <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
   <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
-  <link rel="stylesheet" href="{{ STATIC_URL }}$PROJ/css/$PROJ{% if not debug %}.min{% endif %}.css?v=2" type="text/css" media="all" />
+  {% if debug %}
+    <link href="{{ STATIC_URL }}$PROJ/css/$PROJ.less" rel="stylesheet" type="text/less" media="all" />
+    <script src="{{ STATIC_URL }}js/less.min.js"></script>
+  {% else %}
+    <link href="{{ STATIC_URL }}$PROJ/css/$PROJ.min.css" rel="stylesheet" type="text/css" media="all" />
+  {% endif %}
   <script src="{{ STATIC_URL }}js/modernizr{% if not debug %}.min{% endif %}.js"></script>
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% block body %}
-    <div id="header-container">
-      {% block header %}
-        <header class="wrapper clearfix">
-          <h1 id="title">h1#$PROJ</h1>
-          <nav>
-            <ul>
-              <li><a href="#">nav ul li a</a></li>
-              <li><a href="#">nav ul li a</a></li>
-              <li><a href="#">nav ul li a</a></li>
-            </ul>
-          </nav>
-        </header>
-      {% endblock header %}
-    </div>
-    <div id="main-container">
-      {% block content %}
-      {% endblock content %}
-    </div>
-    <div id="footer-container">
-      {% block footer %}
-        <footer class="wrapper">
-          <h3>footer</h3>
-        </footer>
-      {% endblock footer %}
-    </div>
+    <nav class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="brand" href="/">$PROJ</a>
+          <ul class="nav">
+            <li class="{% block nav_home_class %}{% endblock %}"><a href="/">Home</a></li>
+            <li class="{% block nav_about_class %}{% endblock %}"><a href="/about/">About</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <div class="container">
+      {% block content %}{% endblock content %}
+    </div> <!-- /container -->
   {% endblock body %}
   {% block scripts %}
-    <script src="{{ STATIC_URL }}js/jquery{% if not debug %}.min{% endif %}.js"></script>
-    <script src="{{ STATIC_URL }}$PROJ/js/$PROJ{% if not debug %}.min{% endif %}.js?v=1"></script>
+    {% if debug %}
+      <script src="{{ STATIC_URL }}js/jquery.js"></script>
+      <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
+      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.coffee" type="text/coffeescript"></script>
+    {% else %}
+      <script src="{{ STATIC_URL }}js/jquery.min.js"></script>
+      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.min.js"></script>
+    {% endif %}
   {% endblock scripts %}
-  <script>
-    \$(function() {
-      {% block js_init %}
-      {% endblock js_init %}
-    });
-  </script>
 </body>
 </html>
 EOF
@@ -769,302 +770,126 @@ EOF
 echo "generating $PROJ/templates/$PROJ/index.html"
 cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% extends "$PROJ/base.html" %}
-{% block body_class %}index{% endblock body_class %}
+{% block body_class %}index{% endblock %}
+{% block title %}$PROJ &ndash; The Best Website{% endblock %}
+{% block description %}A really awesome website generated by Django-Bone{% endblock %}
+
+{% block extra_head %}
+  <!-- http://developers.facebook.com/tools/debug -->
+  <!-- <meta property="og:locale" content="en_US"/> -->
+  <!-- <meta property="og:title" content="Useful Tags for Facebook Links"/> -->
+  <!-- <meta property="og:url" content="http://www.baileyhouse.org/auction/"/> -->
+  <!-- <meta property="og:description" content="I let you control how this page will show up in a Facebook feed when people link to it"/> -->
+  <!-- <meta property="og:image" content="{{ STATIC_URL }}$PROJ/img/fb.png"/> -->
+{% endblock extra_head %}
+
 {% block content %}
-  <div id="main" class="wrapper clearfix">
-    <article>
-      <header>
-        <h1>article header h1</h1>
-        <p>The unholy memories and the witches follow, no one questions why the damned call your name cunninger than the petty numbness, more frozen than witches in swirling dust.  they melt my wisdom and cry out with all my terror.</p>
-      </header>
-      <section>
-        <h2>article section h2</h2>
-        <p>Deeper than a petty bitterness, no one cares why the shadows bleed, delivering me to swirling dust.  in the Hell my frenzy shall beg forgiveness.  oh my blood! the love! they drip my heart and flail madly with all my numbness. in the the gates of hell my torment shall fall limply...</p>
-      </section>
-      <section>
-        <h2>article section h2</h2>
-        <p>The angry shadows and the hand of Heaven scour, delivering me to a void deader than damned in broken ground, cunninger than damned in death.  in the nothingness my misery shall beg forgiveness because no one cares why the condemned cry out.</p>
-      </section>
-      <footer>
-        <h3>article footer h3</h3>
-        <p>the sickly shadows and the shadows surround, the dead hand of Heaven and the memories approach... OH MY SOUL! THE TERROR!  moroser than stroke of death in my doom and sicklier than shadows in the path that shall deliver me to the witching hour.</p>
-      </footer>
-    </article>
-    <aside>
-      <h3>aside</h3>
-      <p>Every burning dumpster is a refusal to be productive, a blow against the temporality of liberalism, a recognition of the singular teleology inherent in the articulation of multiplicities.</p>
-    </aside>
+  <div class="content">
+    <header class="page-header">{% block page_header %}
+      <h1>
+        {% block page_title %}$PROJ{% endblock %}
+        <small>{% block page_subtitle %}Welcome to Space Radio{% endblock %}</small>
+      </h1>
+    {% endblock page_header %}</header>
+    <div class="row">
+      <article class="span9">
+        <section>
+          <h1>article header h1</h1>
+          <p>The unholy memories and the witches follow, no one questions why the damned call your name cunninger than the petty numbness, more frozen than witches in swirling dust.  they melt my wisdom and cry out with all my terror.</p>
+        </section>
+        <section>
+          <h2>article section h2</h2>
+          <p>Deeper than a petty bitterness, no one cares why the shadows bleed, delivering me to swirling dust.  in the Hell my frenzy shall beg forgiveness.  oh my blood! the love! they drip my heart and flail madly with all my numbness. in the the gates of hell my torment shall fall limply...</p>
+        </section>
+        <section>
+          <h2>article section h2</h2>
+          <p>The angry shadows and the hand of Heaven scour, delivering me to a void deader than damned in broken ground, cunninger than damned in death.  in the nothingness my misery shall beg forgiveness because no one cares why the condemned cry out.</p>
+        </section>
+        <section>
+          <h3>article footer h3</h3>
+          <p>the sickly shadows and the shadows surround, the dead hand of Heaven and the memories approach... OH MY SOUL! THE TERROR!  moroser than stroke of death in my doom and sicklier than shadows in the path that shall deliver me to the witching hour.</p>
+        </section>
+      </article>
+      <aside class="span3">
+        <h3>aside</h3>
+        <p>Every burning dumpster is a refusal to be productive, a blow against the temporality of liberalism, a recognition of the singular teleology inherent in the articulation of multiplicities.</p>
+      </aside>
+    </div>
   </div>
+  <footer>
+    <p>&copy; $(date +%Y) $AUTHOR</p>
+  </footer>
 {% endblock content %}
 EOF
 
 echo "generating $PROJ/static/$PROJ/js/$PROJ.coffee..."
 cat >$PROJ/static/$PROJ/js/$PROJ.coffee <<EOF
+$ ->
+    \$("#some-random-button").click (ev) ->
+        ev.preventDefault()
+        alert "you clicked me!"
+
+# Insert CSRF cookie in AJAX requests
+\$(document).ajaxSend (event, xhr, settings) ->
+    getCookie = (name) ->
+        if document.cookie
+            for cookie in document.cookie.split ';'
+                if cookie[0..name.length] is name + "="
+                    return decodeURIComponent cookie[name.length + 1...]
+    sameOrigin = (url) ->
+        host = document.location.host
+        protocol = document.location.protocol
+        sr_origin = '//' + host
+        origin = protocol + sr_origin
+        url is origin or url[..origin.length] is origin + '/' or
+        url is sr_origin or url[..sr_origin.length] is sr_origin + '/' or
+        not /^(\/\/|http:|https:).*/.test url
+    safeMethod = (method) ->
+        /^(GET|HEAD|OPTIONS|TRACE)\$/.test method
+    if not safeMethod settings.type and sameOrigin settings.url
+        xhr.setRequestHeader "X-CSRFToken", getCookie 'csrftoken'
 EOF
 
-echo "generating $PROJ/static/$PROJ/css/$PROJ.css..."
-cat >$PROJ/static/$PROJ/css/$PROJ.css <<EOF
-/* HTML5 ✰ Boilerplate
- * ==|== normalize ==========================================================
- */
+echo "generating $PROJ/static/$PROJ/css/$PROJ.less..."
+cat >$PROJ/static/$PROJ/css/$PROJ.less <<EOF
+@import "../../bootstrap/less/bootstrap.less";
 
-article, aside, details, figcaption, figure, footer, header, hgroup, nav, section { display: block; }
-audio, canvas, video { display: inline-block; *display: inline; *zoom: 1; }
-audio:not([controls]) { display: none; }
-[hidden] { display: none; }
+body.index {
+  background-color: #eee;
+  padding-top: 40px;
 
-html { font-size: 100%; overflow-y: scroll; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-body { margin: 0; font-size: 13px; line-height: 1.231; }
-body, button, input, select, textarea { font-family: sans-serif; color: #222; }
+  .container > footer p { text-align: center; }
+  a.btn { color: #404040; text-shadow: none; }
+  .userlink img { vertical-align: middle; }
 
-::-moz-selection { background: #fe57a1; color: #fff; text-shadow: none; }
-::selection { background: #fe57a1; color: #fff; text-shadow: none; }
+  .content {
+    background-color: #fff;
+    padding: 20px;
+    margin: 0 -20px;
+    .border-radius(0 0 6px 6px);
+    .box-shadow(0 1px 2px rgba(0,0,0,.15));
+  }
 
-a { color: #00e; }
-a:visited { color: #551a8b; }
-a:hover { color: #06e; }
-a:focus { outline: thin dotted; }
-a:hover, a:active { outline: 0; }
+  .page-header {
+    background-color: #f5f5f5;
+    padding: 20px 20px 10px;
+    margin: -20px -20px 20px;
+  }
 
-abbr[title] { border-bottom: 1px dotted; }
-b, strong { font-weight: bold; }
-blockquote { margin: 1em 40px; }
-dfn { font-style: italic; }
-hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin: 1em 0; padding: 0; }
-ins { background: #ff9; color: #000; text-decoration: none; }
-mark { background: #ff0; color: #000; font-style: italic; font-weight: bold; }
-pre, code, kbd, samp { font-family: monospace, monospace; _font-family: 'courier new', monospace; font-size: 1em; }
-pre { white-space: pre; white-space: pre-wrap; word-wrap: break-word; }
-q { quotes: none; }
-q:before, q:after { content: ""; content: none; }
-small { font-size: 85%; }
-sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
-sup { top: -0.5em; }
-sub { bottom: -0.25em; }
-ul, ol { margin: 1em 0; padding: 0 0 0 40px; }
-dd { margin: 0 0 0 40px; }
-nav ul, nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
-img { border: 0; -ms-interpolation-mode: bicubic; vertical-align: middle; }
-svg:not(:root) { overflow: hidden; }
-figure { margin: 0; }
+  .content .span12,
+  .content .span4 { min-height: 500px; }
+  .content .span12 { width: 680px; margin-right: 20px; }
 
-form { margin: 0; }
-fieldset { border: 0; margin: 0; padding: 0; }
-label { cursor: pointer; }
-legend { border: 0; *margin-left: -7px; padding: 0; }
-button, input, select, textarea { font-size: 100%; margin: 0; vertical-align: baseline; *vertical-align: middle; }
-button, input { line-height: normal; *overflow: visible; }
-table button, table input { *overflow: auto; }
-button, input[type="button"], input[type="reset"], input[type="submit"] { cursor: pointer; -webkit-appearance: button; }
-input[type="checkbox"], input[type="radio"] { box-sizing: border-box; }
-input[type="search"] { -webkit-appearance: textfield; -moz-box-sizing: content-box; -webkit-box-sizing: content-box; box-sizing: content-box; }
-input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
-button::-moz-focus-inner, input::-moz-focus-inner { border: 0; padding: 0; }
-textarea { overflow: auto; vertical-align: top; resize: vertical; }
-input:valid, textarea:valid {  }
-input:invalid, textarea:invalid { background-color: #f0dddd; }
+  .content .span4 {
+    margin-left: 0;
+    padding-left: 19px;
+    border-left: 1px solid #eee;
+  }
 
-table { border-collapse: collapse; border-spacing: 0; }
-td { vertical-align: top; }
+  .topbar .btn {
+    border: 0;
+  }
 
-
-/* ===================================================
-    Initializr styles
-    http://verekia.com/initializr/responsive-template
-    Author: Jonathan Verrecchia
-   =================================================== */
-
-body{ font:16px/24px Helvetica, Helvetica Neue, Arial, sans-serif; }
-
-.wrapper{
-	width:90%;
-	margin:0 5%;
-}
-
-/* ===================
-    ALL: Orange Theme
-   =================== */
-
-#header-container{ border-bottom: 20px solid #e44d26; }
-#footer-container{ border-top:    20px solid #e44d26; }
-#main aside      { border-top:    20px solid #e44d26; }
-
-#header-container,
-#footer-container,
-#main aside{
-	background:#f16529;
-}
-
-#title{ color:white; }
-
-::-moz-selection { background: #f16529; color: #fff; text-shadow: none; }
-::selection      { background: #f16529; color: #fff; text-shadow: none; }
-
-/* ==============
-    MOBILE: Menu
-   ============== */
-
-nav a{
-	display:block;
-	margin-bottom:10px;
-	padding:15px 0;
-
-	background:#e44d26;
-	color:white;
-
-	text-align:center;
-	text-decoration:none;
-	font-weight:bold;
-}
-
-nav a:hover, nav a:visited{
-	color:white;
-}
-
-nav a:hover{
-	text-decoration:underline;
-}
-
-/* ==============
-    MOBILE: Main
-   ============== */
-
-#main{
-	padding:30px 0;
-}
-
-#main article h1{
-	font-size:2em;
-}
-
-#main aside{
-	color:white;
-	padding:0px 5% 10px;
-}
-
-#footer-container footer{
-	color:white;
-	padding:20px 0;
-}
-
-/* ===============
-    ALL: IE Fixes
-   =============== */
-
-.ie7 #title{ padding-top:20px; }
-
-
-/* ==|== non-semantic helper classes ======================================== */
-.ir { display: block; border: 0; text-indent: -999em; overflow: hidden; background-color: transparent; background-repeat: no-repeat; text-align: left; direction: ltr; }
-.ir br { display: none; }
-.hidden { display: none !important; visibility: hidden; }
-.visuallyhidden { border: 0; clip: rect(0 0 0 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; }
-.visuallyhidden.focusable:active, .visuallyhidden.focusable:focus { clip: auto; height: auto; margin: 0; overflow: visible; position: static; width: auto; }
-.invisible { visibility: hidden; }
-.clearfix:before, .clearfix:after { content: ""; display: table; }
-.clearfix:after { clear: both; }
-.clearfix { zoom: 1; }
-
-
-/* ==|== media queries ====================================================== */
-
-@media only screen and (min-width: 480px) {
-
-/* ====================
-    INTERMEDIATE: Menu
-   ==================== */
-	
-	nav a{
-		float:left;
-		width:27%;
-		margin:0 1.7%;
-		padding:25px 2%;
-		margin-bottom:0;
-	}
-	
-	nav li:first-child a{ margin-left:0;  }
-	nav li:last-child  a{ margin-right:0; }
-	
-/* ========================
-    INTERMEDIATE: IE Fixes
-   ======================== */
-
-	nav ul li{
-		display:inline;
-	}	
-	.oldie nav a{
-		margin:0 0.7%;		
-	}
-}
-
-@media only screen and (min-width: 768px) {
-
-/* ====================
-    WIDE: CSS3 Effects
-   ==================== */
-
-	#header-container,
-	#main aside{
-		-webkit-box-shadow:0 5px 10px #aaa;
-		   -moz-box-shadow:0 5px 10px #aaa;
-		        box-shadow:0 5px 10px #aaa;
-	}
-
-/* ============
-    WIDE: Menu
-   ============ */
-	
-	#title{
-		float:left;
-	}
-
-	nav{
-		float:right;
-		width:38%;
-	}
-
-/* ============
-    WIDE: Main
-   ============ */
-
-	#main article{
-		float:left;
-		width:57%;
-	}
-		
-	#main aside{
-		float:right;
-		width:28%;
-	}
-}
-
-@media only screen and (min-width: 1140px) {
-
-/* ===============
-    Maximal Width
-   =============== */
-
-	.wrapper{
-		width:1026px; /* 1140px - 10% for margins */
-		margin:0 auto;
-	}
-}
-
-/* ==|== print styles ======================================================= */
- 
-@media print {
-  * { background: transparent !important; color: black !important; text-shadow: none !important; filter:none !important; -ms-filter: none !important; } 
-  a, a:visited { text-decoration: underline; }
-  a[href]:after { content: " (" attr(href) ")"; }
-  abbr[title]:after { content: " (" attr(title) ")"; }
-  .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after { content: ""; } 
-  pre, blockquote { border: 1px solid #999; page-break-inside: avoid; }
-  thead { display: table-header-group; }
-  tr, img { page-break-inside: avoid; }
-  img { max-width: 100% !important; }
-  @page { margin: 0.5cm; }
-  p, h2, h3 { orphans: 3; widows: 3; }
-  h2, h3 { page-break-after: avoid; }
 }
 EOF
 
@@ -1254,14 +1079,8 @@ r"""
 
 """
 
-import os
-import sys
-from glob import glob
-from subprocess import call
 from optparse import make_option
 
-
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 
@@ -1273,7 +1092,7 @@ class Command(BaseCommand):
             '--twice', action='store_true', dest='twice',
             default=False, help="Print output twice"),
         make_option(
-            '--indent', action='int', dest='indent',
+            '--indent', type='int', dest='indent',
             default=4, help="How many spaces to indent"),
     )
 
@@ -1683,23 +1502,23 @@ EOF
 
 easy_install pip || exit 1
 
-## BEGIN TEMPORARY
-# install dev django until 1.4 is released
-# pip download cache doesn't work when installing from a repo :(
-mkdir -p $PIP_DOWNLOAD_CACHE
-pushd $PIP_DOWNLOAD_CACHE
-if [[ -d $PIP_DOWNLOAD_CACHE/django ]]; then
-    cd django
-    git pull || exit 1
-else
-    git clone git://github.com/django/django.git django || exit 1
-fi
-popd
-git clone $PIP_DOWNLOAD_CACHE/django ../django || exit 1
-pip install -e ../django || exit 1
-## END TEMPORARY
+# ## BEGIN TEMPORARY
+# # install dev django until 1.4 is released
+# # pip download cache doesn't work when installing from a repo :(
+# mkdir -p $PIP_DOWNLOAD_CACHE
+# pushd $PIP_DOWNLOAD_CACHE
+# if [[ -d $PIP_DOWNLOAD_CACHE/django ]]; then
+#     cd django
+#     git pull || exit 1
+# else
+#     git clone git://github.com/django/django.git django || exit 1
+# fi
+# popd
+# git clone $PIP_DOWNLOAD_CACHE/django ../django || exit 1
+# pip install -e ../django || exit 1
+# ## END TEMPORARY
 
-pip install sphinx gunicorn pyflakes pep8 || exit 1
+pip install Django sphinx gunicorn pyflakes pep8 || exit 1
 pip install -e $(pwd) || exit 1
 
 $PROJ-dev collectstatic --noinput || exit 1

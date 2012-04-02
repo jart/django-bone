@@ -16,9 +16,9 @@ About
 Starting a new Django project?  django-bone will save you a few days worth of
 work by generating all the annoying boilerplate code for you.  One simple
 command is all that's needed to set up everything you'd expect from a
-bona-fide python project: a setup file, documentation, unit tests, version
-control, virtualenv, db migrations, snazzy html5 boilerplate, js/css
-minimization, deployment scripts, init.d file, etc.
+bona-fide python project: a setup file and Makefile, documentation, unit
+tests, pyflakes/pep8 tests, version control, virtualenv, db migrations,
+Twitter Bootstrap, js/css minimization, deployment scripts, init.d file, etc.
 
 django-bone configures your code to follow what I believe to be the 'one true
 path' to django enlightenment, using design practices we've been refining for
@@ -49,9 +49,17 @@ Create a new project::
     django-bone myapp
     cd myapp/myapp
     source ../bin/activate
-    myapp-dev runserver
+    make dev && myapp-dev runserver
 
 The following tools and libraries will also be configured:
+
+- Twitter Bootstrap: A very popular way to design clean looking websites.
+
+- lessc: Less is a very popular compiler that makes CSS easier to use by
+  extending its syntax. Less is used by Twitter Bootstrap.
+
+- coffeescript: Similar to Less, this is a compiler that gives javascript a
+  more eloquent syntax that's easy to learn and requires far less typing.
 
 - south: The standard for managing database schema changes and migrations.
   It's one of the best third party libraries available for Django and is so

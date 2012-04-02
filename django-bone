@@ -112,8 +112,7 @@ setup(
     author_email         = "$EMAIL",
     license              = "$LICENSE",
     install_requires     = ["Django", "south", "django-reversion",
-                            "python-memcached", "django-debug-toolbar",
-                            "cssmin", "slimit"],
+                            "python-memcached", "django-debug-toolbar"],
     packages             = find_packages(),
     include_package_data = True,
     zip_safe             = False,
@@ -144,39 +143,33 @@ Install from git into a virtualenv::
     sudo chmod go+rwt /opt  # let people create new files in /opt
     cd /opt
     virtualenv $PROJ
-    cd $PROJ/$PROJ
+    cd $PROJ
     source bin/activate
     git clone REPO_URL
     easy_install pip
-    pip install gunicorn
-    pip install -e \$(pwd)
-    $PROJ-dev syncdb
-    $PROJ-dev migrate
+    make deps
+    make
 
-The ritual for running in development mode::
+How to run a debug server::
 
-    $PROJ-dev test $PROJ
-    $PROJ-dev runserver
+    make dev && $PROJ-dev runserver
 
-Generate the documentation::
+How to run a non-debug server::
 
-    pip install sphinx
-    make -C doc html
+    make pro && $PROJ runserver
+
+View the documentation::
+
     firefox doc/_build/html/index.html
 
 
-Production Mode
----------------
+Production
+----------
 
-First you should update to the latest code::
+First you should update to the latest code and build everything::
 
     git pull
-    pip install -e \$(pwd)
-    rm -f $(find . -name \*.pyc)
-    $PROJ migrate
-    $PROJ minify $PROJ
-    $PROJ collectstatic --noinput
-    $PROJ compilemessages
+    make pro
 
 Now install and configure nginx::
 
@@ -197,6 +190,48 @@ You can also run gunicorn manually::
 
 When using PostgreSQL, it is strongly recommended that you configure pgbouncer
 on your system to significantly reduce request latency and memory consumption.
+EOF
+
+echo "generating Makefile..."
+cat >Makefile <<EOF
+dev:
+	pip install sphinx pep8 pyflakes
+	pip install -e .
+	pep8     $PROJ/admin.py
+	pyflakes $PROJ/admin.py
+	pep8     $PROJ/middleware.py
+	pyflakes $PROJ/middleware.py
+	pep8     $PROJ/models.py
+	pyflakes $PROJ/models.py
+	pep8     $PROJ/views.py
+	pyflakes $PROJ/views.py
+	pep8     $PROJ/tests.py
+	pyflakes $PROJ/tests.py
+	pep8     $PROJ/management/commands/example.py
+	pyflakes $PROJ/management/commands/example.py
+	$PROJ-dev syncdb
+	$PROJ-dev migrate
+	$PROJ-dev test $PROJ
+	make -C doc html
+
+pro:
+	pip install -e .
+#	lessc $PROJ/static/$PROJ/css/$PROJ.less \
+#		$PROJ/static/$PROJ/css/$PROJ.css
+#	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \
+#		$PROJ/static/$PROJ/css/$PROJ.min.css
+	coffee -o $PROJ/static/$PROJ/js \
+		$PROJ/static/$PROJ/js/$PROJ.coffee
+	$PROJ migrate
+	$PROJ collectstatic --noinput
+
+deps:
+	apt-get install -y python python-dev lessc coffeescript
+
+newdb:
+	rm -f $PROJ.sqlite3
+	make
+	$PROJ createsuperuser --username=$USER --email=$EMAIL
 EOF
 
 echo "generating scripts/$PROJ..."
@@ -756,8 +791,8 @@ cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% endblock content %}
 EOF
 
-echo "generating $PROJ/static/$PROJ/js/$PROJ.js..."
-cat >$PROJ/static/$PROJ/js/$PROJ.js <<EOF
+echo "generating $PROJ/static/$PROJ/js/$PROJ.coffee..."
+cat >$PROJ/static/$PROJ/js/$PROJ.coffee <<EOF
 EOF
 
 echo "generating $PROJ/static/$PROJ/css/$PROJ.css..."
@@ -1201,35 +1236,14 @@ touch $PROJ/management/__init__.py
 echo "generating $PROJ/management/commands/__init__.py..."
 touch $PROJ/management/commands/__init__.py
 
-echo "generating $PROJ/management/commands/minify.py..."
-cat >$PROJ/management/commands/minify.py <<EOF
+echo "generating $PROJ/management/commands/example.py..."
+cat >$PROJ/management/commands/example.py <<EOF
 r"""
 
-    $PROJ.cmd.minify
-    $(echo $PROJ.cmd.minify | sed s/./~/g)
+    $PROJ.cmd.example
+    $(echo $PROJ.cmd.example | sed s/./~/g)
 
-    Minifies JS/CSS/PNG media files.
-
-    Usage: ``$PROJ minify APP ...``
-
-    You specify a list of Django apps as arguments.  This program finds the
-    files by searching ``\$MEDIA_DIR/\$APP_NAME/{js,css,img}/``.  The
-    ``.min.js`` file extension is used for minified files.  No new files need
-    to be created to optimize PNG.
-
-    Minification is done using:
-
-    - Javascript: slimit_
-    - CSS: cssmin_
-    - PNG: optipng_ (if available)
-
-    Please don't put third party libraries like jQuery in your app's media
-    folder because we shouldn't be minimizing them.  Put vendor libraries in
-    ``\$MEDIA_DIR/{js,css,img}/``.
-
-    .. _slimit: http://pypi.python.org/pypi/slimit
-    .. _cssmin: http://pypi.python.org/pypi/cssmin
-    .. _optipng: http://optipng.sourceforge.net/
+    Example manage.py command. Prints out whatever arguments you pass.
 
 """
 
@@ -1245,86 +1259,24 @@ from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    args = 'APP ...'
+    args = 'WORD ...'
     help = __doc__
     option_list = BaseCommand.option_list + (
         make_option(
-            '--no-mangle', action='store_false', dest='mangle',
-            default=True, help="Don't mangle javascript variables"),
+            '--twice', action='store_true', dest='twice',
+            default=False, help="Print output twice"),
         make_option(
-            '--copyright', action='store_true', dest='copyright',
-            default=False, help=("Preserve first comment in file about "
-                                 "imaginary property")),
+            '--indent', action='int', dest='indent',
+            default=4, help="How many spaces to indent"),
     )
 
     def handle(self, *args, **options):
-        mroot = settings.MEDIA_ROOT
-        mangle = options['mangle']
-        copyright = options['copyright']
-        toto_before = 0
-        toto_after = 0
-
         if not args:
-            raise CommandError('Please specify an app name!')
-
-        try:
-            from slimit import minify
-        except ImportError:
-            raise CommandError('Please run: pip install slimit')
-
-        try:
-            from cssmin import cssmin
-        except ImportError:
-            raise CommandError('Please run: pip install cssmin')
-
-        for app in args:
-            for ext, funk in (('js', lambda s: minify(s, mangle=mangle)),
-                              ('css', lambda s: cssmin(s))):
-                noms = glob('%s/%s/%s/*.%s' % (mroot, app, ext, ext))
-                for nom in [nom for nom in noms if '.min.' not in nom]:
-                    before = os.stat(nom).st_size
-                    toto_before += before
-                    sys.stdout.write('minifying %s...' % (nom))
-                    try:
-                        with open(nom) as fin:
-                            data = fin.read()
-                            res = funk(data)
-                            if copyright and data.startswith('/*'):
-                                res = data[:data.index('*/') + 2] + res
-                    except Exception, exc:
-                        sys.stdout.write('%r\n' % (exc))
-                    else:
-                        after = len(res)
-                        toto_after += after
-                        with open(nom[:-len(ext)] + 'min.' + ext, 'w') as fout:
-                            fout.write(res)
-                        pct = int(float(after) / before * 100)
-                        sys.stdout.write('OK (%d%% orig size)\n' % (pct))
-
-        sys.stdout.write(
-            'total js/css reduction: %dkB -> %dkB (%d%% orig size)\n' % (
-                int(float(toto_before) / 1024),
-                int(float(toto_after) / 1024),
-                int(float(toto_after) / toto_before * 100)))
-
-        pngs = []
-        for app in args:
-            pngs += glob('%s/%s/img/*.png' % (mroot, app))
-            pngs += glob('%s/%s/img/*/*.png' % (mroot, app))
-            pngs += glob('%s/%s/img/*/*/*.png' % (mroot, app))
-        if pngs:
-            sys.stdout.write('optimizing all your png files...')
-            try:
-                if call(['optipng', '-quiet'] + pngs) != 0:
-                    sys.stdout.write('FAIL\n')
-            except Exception, exc:
-                if isinstance(exc, OSError) and exc.errno == 2:
-                    sys.stdout.write('optipng not installed!\n'
-                                     'sudo apt-get install optipng\n')
-                else:
-                    sys.stdout.write('%r\n' % (exc))
-            else:
-                sys.stdout.write('OK\n')
+            raise CommandError('Please specify some args!')
+        output = (' ' * options.indent) + ' '.join(args)
+        print output
+        if options.twice:
+            print output
 EOF
 
 echo "generating doc/conf.py..."
@@ -1584,7 +1536,7 @@ Modules
    :members:
 .. automodule:: $PROJ.middleware
    :members:
-.. automodule:: $PROJ.management.commands.minify
+.. automodule:: $PROJ.management.commands.example
    :members:
 EOF
 
@@ -1763,7 +1715,7 @@ To get started you should run:
 
     cd $PROJ/$PROJ
     source ../bin/activate
-    $PROJ-dev runserver
+    make dev && $PROJ-dev runserver
 
 For further instructions:
 

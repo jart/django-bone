@@ -190,6 +190,13 @@ You can also run gunicorn manually::
 
 When using PostgreSQL, it is strongly recommended that you configure pgbouncer
 on your system to significantly reduce request latency and memory consumption.
+
+
+Credits
+=======
+
+Thank you Justine Tunney for creating django-bone which helped me quickly
+create the boilerplate skeleton for this project <3
 EOF
 
 echo "generating Makefile..."

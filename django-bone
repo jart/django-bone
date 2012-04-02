@@ -91,6 +91,7 @@ build
 deps
 dist
 pip-log.txt
+*.sqlite3
 EOF
 
 echo "generating setup.py..."
@@ -231,11 +232,11 @@ dev:
 
 pro:
 	pip install -e .
-	lessc $PROJ/static/$PROJ/css/$PROJ.less \
+	lessc $PROJ/static/$PROJ/css/$PROJ.less \\
 		$PROJ/static/$PROJ/css/$PROJ.css
-	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \
+	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \\
 		$PROJ/static/$PROJ/css/$PROJ.min.css
-	coffee -o $PROJ/static/$PROJ/js \
+	coffee -o $PROJ/static/$PROJ/js \\
 		$PROJ/static/$PROJ/js/$PROJ.coffee
 	$PROJ migrate
 	$PROJ collectstatic --noinput

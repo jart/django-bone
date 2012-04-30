@@ -291,8 +291,8 @@ echo "generating $PROJ/settings.py..."
 cat >$PROJ/settings.py <<EOF
 r"""
 
-    $PROJ.settings
-    $(echo $PROJ.settings | sed s/./~/g)
+    settings
+    $(echo settings | sed s/./~/g)
 
     This file is used to configure Django.
 
@@ -485,8 +485,8 @@ echo "generating $PROJ/middleware.py..."
 cat >$PROJ/middleware.py <<EOF
 r"""
 
-    $PROJ.middleware
-    $(echo $PROJ.middleware | sed s/./~/g)
+    middleware
+    $(echo middleware | sed s/./~/g)
 
     Django middleware definitions.
 
@@ -567,8 +567,8 @@ echo "generating $PROJ/admin.py..."
 cat >$PROJ/admin.py <<EOF
 r"""
 
-    $PROJ.admin
-    $(echo $PROJ.admin | sed s/./~/g)
+    admin
+    $(echo admin | sed s/./~/g)
 
     Django admin gui customization
 
@@ -605,8 +605,8 @@ echo "generating $PROJ/urls.py..."
 cat >$PROJ/urls.py <<EOF
 r"""
 
-    $PROJ.urls
-    $(echo $PROJ.urls | sed s/./~/g)
+    urls
+    $(echo urls | sed s/./~/g)
 
     HTTP request routing
 
@@ -638,8 +638,8 @@ echo "generating $PROJ/views.py..."
 cat >$PROJ/views.py <<EOF
 r"""
 
-    $PROJ.views
-    $(echo $PROJ.views | sed s/./~/g)
+    views
+    $(echo views | sed s/./~/g)
 
     Dynamic web page functions
 
@@ -668,8 +668,8 @@ echo "generating $PROJ/models.py..."
 cat >$PROJ/models.py <<EOF
 r"""
 
-    $PROJ.models
-    $(echo $PROJ.models | sed s/./~/g)
+    models
+    $(echo models | sed s/./~/g)
 
     Database definition
 
@@ -1071,8 +1071,8 @@ echo "generating $PROJ/management/commands/example.py..."
 cat >$PROJ/management/commands/example.py <<EOF
 r"""
 
-    $PROJ.cmd.example
-    $(echo $PROJ.cmd.example | sed s/./~/g)
+    cmd.example
+    $(echo cmd.example | sed s/./~/g)
 
     Example manage.py command. Prints out whatever arguments you pass.
 

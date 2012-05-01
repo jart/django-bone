@@ -13,47 +13,32 @@
 About
 =====
 
-Starting a new Django project?  django-bone will save you a few days worth of
-work by generating all the annoying boilerplate code for you.  One simple
-command is all that's needed to set up everything you'd expect from a
-bona-fide python project: a setup file and Makefile, documentation, unit
-tests, pyflakes/pep8 tests, version control, virtualenv, db migrations,
-Twitter Bootstrap, js/css minimization, deployment scripts, init.d file, etc.
+django-bone = django + bootstrap + less + coffeescript + sphinx + south +
+reversion + jquery + js/css minimization + debug-toolbar + gravatar +
+pyflakes + pep8 + git + virtualenv + pip + tests
 
-django-bone configures your code to follow what I believe to be the 'one true
-path' to django enlightenment, using design practices we've been refining for
-years.  Your project will also be configured with some of the greatest tools
-available which we feel are stable, not too unfamiliar, and have stood the
-test of time.
+Starting a serious Django project? Not a newbie? Good. django-bone will save
+you a few days worth of work by generating all the annoying boilerplate code
+for you. One simple command is all you need to create a skeleton website with
+all the infrastructure you'll need as your project grows.
 
-Please note that the ``manage.py`` hack is removed because it's always made me
-sad that so few Django developers take the time to write ``setup.py`` files
-like the rest of the python community :( Instead of ``manage.py`` you'll run a
-command named after your project.
+Here's a screenshot of what you get:
+
+![Django-Bone Screenshot](http://i.imgur.com/o0IHy.png)
 
 
 Usage
 =====
 
-Install the script and make some minor system changes::
+Here's how you use django-bone, assuming python/pip/virtualenv are installed::
 
     sudo ./install.sh
-    sudo easy_install -U pip
-    sudo pip install -U virtualenv
-    sudo chmod go+rwt /opt  # let people create new files in /opt
-    export PIP_DOWNLOAD_CACHE=~/.pip/cache
-
-Create a new project::
-
     cd /opt
     django-bone myapp
-    cd myapp/myapp
-    source ../bin/activate
-    make dev && myapp-dev runserver
 
 The following tools and libraries will also be configured:
 
-- Twitter Bootstrap: A very popular way to design clean looking websites.
+- Twitter Bootstrap: The hippest way to make clean looking websites.
 
 - lessc: Less is a very popular compiler that makes CSS easier to use by
   extending its syntax. Less is used by Twitter Bootstrap.

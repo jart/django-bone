@@ -24,7 +24,7 @@ all the infrastructure you'll need as your project grows.
 
 Here's a screenshot of what you get:
 
-![Django-Bone Screenshot](http://i.imgur.com/o0IHy.png)
+.. image:: http://i.imgur.com/AY5mo.png
 
 
 Usage

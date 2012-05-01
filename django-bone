@@ -7,16 +7,16 @@
 
 PROJ=$1
 
-[ -z "$PROJ" ]               && ( echo "missing name!" >&2; exit 1 )
-[ -f "$PROJ" ]               && ( echo "$PROJ already exists!" >&2; exit 1 )
-[ -z "$DEST" ]               && DEST="."
-[ -z "$EMAIL" ]              && EMAIL="$(git config user.email)"
-[ -z "$EMAIL" ]              && EMAIL="$USER@$(hostname -f)"
-[ -z "$AUTHOR" ]             && AUTHOR="$(git config user.name)"
-[ -z "$AUTHOR" ]             && AUTHOR="$USER"
-[ -z "$DESCRIP" ]            && DESCRIP="$PROJ"
-[ -z "$LICENSE" ]            && LICENSE="GNU AGPL v3 or later"
-[ -z "$PIP_DOWNLOAD_CACHE" ] && export PIP_DOWNLOAD_CACHE="~/.pip/cache"
+[[ $PROJ ]]                  || ( echo "missing name!" >&2; exit 1 )
+[[ $DEST ]]                  || DEST="."
+[[ -d "$DEST/$PROJ" ]]       && ( echo "$PROJ already exists!" >&2; exit 1 )
+[[ $EMAIL ]]                 || EMAIL="$(git config user.email)"
+[[ $EMAIL ]]                 || EMAIL="$USER@$(hostname -f)"
+[[ $AUTHOR ]]                || AUTHOR="$(git config user.name)"
+[[ $AUTHOR ]]                || AUTHOR="$USER"
+[[ $DESCRIP ]]               || DESCRIP="$PROJ"
+[[ $LICENSE ]]               || LICENSE="GNU AGPL v3 or later"
+[[ $PIP_DOWNLOAD_CACHE ]]    || export PIP_DOWNLOAD_CACHE="~/.pip/cache"
 
 virtualenv $PROJ
 cd $PROJ
@@ -29,6 +29,7 @@ mkdir -p scripts
 mkdir -p conf/{init.d,nginx}
 mkdir -p doc/{_build,_static,_templates}
 mkdir -p $PROJ/templates/$PROJ
+mkdir -p $PROJ/templates/registration
 mkdir -p $PROJ/static/{img,css,js}
 mkdir -p $PROJ/static/$PROJ/{img,css,js}
 mkdir -p $PROJ/management/commands
@@ -50,7 +51,7 @@ wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js || exit 1
 echo "downloading $PROJ/static/js/jquery.min.js..."
 wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
 echo "downloading $PROJ/static/js/modernizr.js..."
-wget -qO $PROJ/static/js/modernizr.js http://lobstertech.com/media/js/modernizr.js || exit 1
+wget -qO $PROJ/static/js/modernizr.js http://modernizr.com/downloads/modernizr.js || exit 1
 echo "downloading $PROJ/static/js/less.min.js..."
 wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js || exit 1
 echo "downloading $PROJ/static/js/coffee-script.min.js..."
@@ -121,7 +122,8 @@ setup(
     author_email         = "$EMAIL",
     license              = "$LICENSE",
     install_requires     = ["Django", "south", "django-reversion",
-                            "python-memcached", "django-debug-toolbar"],
+                            "python-memcached", "django-debug-toolbar",
+                            "django-gravatar"],
     packages             = find_packages(),
     include_package_data = True,
     zip_safe             = False,
@@ -155,7 +157,6 @@ Install from git into a virtualenv::
     cd $PROJ
     source bin/activate
     git clone REPO_URL
-    easy_install pip
     make deps
     make
 
@@ -238,11 +239,20 @@ pro:
 		$PROJ/static/$PROJ/css/$PROJ.min.css
 	coffee -o $PROJ/static/$PROJ/js \\
 		$PROJ/static/$PROJ/js/$PROJ.coffee
+	uglifyjs -o $PROJ/static/$PROJ/js/$PROJ.min.js \\
+		$PROJ/static/$PROJ/js/$PROJ.js
+	uglifyjs -o $PROJ/static/js/modernizr.min.js \\
+		$PROJ/static/js/modernizr.js
+	make -C $PROJ/static/bootstrap bootstrap
+	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
+		$PROJ/static/js
 	$PROJ migrate
 	$PROJ collectstatic --noinput
 
 deps:
-	apt-get install -y python python-dev lessc coffeescript
+	apt-get install -y python python-dev python-setuptools
+	easy_install virtualenv pip
+	npm install -g less coffee-script coffeelint uglify-js
 
 newdb:
 	rm -f $PROJ.sqlite3
@@ -302,6 +312,7 @@ import os
 import sys
 from datetime import timedelta
 from os.path import abspath, dirname, join, exists
+from django.core.urlresolvers import reverse_lazy
 project_root = dirname(abspath(__file__))
 
 DEBUG = False
@@ -309,6 +320,8 @@ TEMPLATE_DEBUG = DEBUG
 SECRET_KEY = "please change me to some wacky random value"
 STATIC_ROOT = "/opt/$PROJ/static"
 STATIC_URL = "/static/"
+MEDIA_ROOT = "/opt/$PROJ/static/media"
+MEDIA_URL = "/static/media/"
 SITE_ID = 1
 DEFAULT_CHARSET = "utf-8"
 USE_I18N = True
@@ -320,6 +333,9 @@ ROOT_URLCONF = "$PROJ.urls"
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 SESSION_COOKIE_HTTPONLY = True
 USE_X_FORWARDED_HOST = True
+LOGIN_REDIRECT_URL = reverse_lazy('index')
+LOGIN_URL = reverse_lazy('login')
+LOGOUT_URL = reverse_lazy('index')
 
 BOLD = "\x1b[1m"
 GREEN = "\x1b[32m"
@@ -356,7 +372,7 @@ TEMPLATE_LOADERS = (
 MIDDLEWARE_CLASSES = [
     "$PROJ.middleware.XForwardedForMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.transaction.TransactionMiddleware",
+    # "django.middleware.transaction.TransactionMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -385,6 +401,7 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "south",
     "reversion",
+    "gravatar",
 ]
 
 LOGGING = {
@@ -550,7 +567,7 @@ class BasicTest(TestCase):
         pass
 
     def test_index(self):
-        url = reverse("$PROJ.views.index")
+        url = reverse("index")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
@@ -559,7 +576,7 @@ class BasicTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_error(self):
-        url = reverse("$PROJ.views.error")
+        url = reverse("error")
         self.assertRaises(AssertionError, lambda: self.client.get(url))
 EOF
 
@@ -613,15 +630,18 @@ r"""
 """
 
 from django.conf import settings
+from django.views.generic import TemplateView
 from django.conf.urls.defaults import patterns, url, include
 from django.views.decorators.http import require_GET, require_POST
+from django.contrib.auth.urls import urlpatterns as auth_urlpatterns
 
 from $PROJ.admin import AdminSite
 
 adminsite = AdminSite(name="${PROJ}_admin")
 
-urlpatterns = patterns("",
-    url(r"^$", "$PROJ.views.index", name="index"),
+urlpatterns = auth_urlpatterns + patterns("",
+    url(r"^$", TemplateView.as_view(template_name="$PROJ/index.html"), name="index"),
+    url(r'^about/$', TemplateView.as_view(template_name="$PROJ/about.html"), name="about"),
     # url(r"^article/(?P<slug>[-_\d\w]+)/$", "$PROJ.views.article", name="article"),
     url(r"^error/$", "$PROJ.views.error", name="error"),
     url(r"^admin/", include(adminsite.urls)),
@@ -646,17 +666,10 @@ r"""
 """
 
 # from django.conf import settings
-from django.template import RequestContext
-from django.shortcuts import render_to_response
+# from django.template import RequestContext
+# from django.shortcuts import render_to_response
 
 # from $PROJ import models as db
-
-
-def index(request):
-    """I render the home page"""
-    return render_to_response(
-        "$PROJ/index.html", {},
-        context_instance=RequestContext(request))
 
 
 def error(request):
@@ -721,6 +734,7 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
 <!DOCTYPE html>
 <html>
 <head>
+  {% load gravatar %}
   <meta charset="utf-8" />
   <title>{% block title %}$PROJ{% endblock title %}</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
@@ -737,7 +751,7 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="design {% block body_class %}{% endblock %}">
   {% block body %}
     <nav class="navbar navbar-fixed-top">
       <div class="navbar-inner">
@@ -747,6 +761,37 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
             <li class="{% block nav_home_class %}{% endblock %}"><a href="/">Home</a></li>
             <li class="{% block nav_about_class %}{% endblock %}"><a href="/about/">About</a></li>
           </ul>
+          {% if user.is_authenticated %}
+            <ul class="nav pull-right">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                  {% gravatar user 16 %} {{ user.username }}
+                  <b class="caret"></b>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a class="userlink" href="{% url password_change %}">Change Password</a></li>
+                  <li class="divider"></li>
+                  <li><a class="userlink" href="{% url logout %}">Log Out</a></li>
+                </ul>
+              </li>
+            </ul>
+          {% else %}
+            <ul class="nav pull-right">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Log In <b class="caret"></b></a>
+                <ul class="dropdown-menu login">
+                  <form action="{% url login %}" method="post">{% csrf_token %}
+                    <label for="login-username">Username</label>
+                    <input class="span2" type="text" name="username" id="login-username" placeholder="Username">
+                    <label for="login-password">Passphrase</label>
+                    <input class="span2" type="password" name="password" id="login-password" placeholder="Passphrase">
+                    <button class="btn primary" type="submit">Sign in</button>
+                  </form>
+                  <small><a href="{% url password_reset %}">Forgot password</a></small>
+                </ul>
+              </li>
+            </ul>
+          {% endif %}
         </div>
       </div>
     </nav>
@@ -757,10 +802,23 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   {% block scripts %}
     {% if debug %}
       <script src="{{ STATIC_URL }}js/jquery.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-transition.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-alert.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-modal.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-dropdown.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-scrollspy.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tab.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tooltip.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-popover.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-button.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-collapse.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-carousel.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-typeahead.js"></script>
       <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
       <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.coffee" type="text/coffeescript"></script>
     {% else %}
       <script src="{{ STATIC_URL }}js/jquery.min.js"></script>
+      <script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
       <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.min.js"></script>
     {% endif %}
   {% endblock scripts %}
@@ -794,24 +852,24 @@ cat >$PROJ/templates/$PROJ/index.html <<EOF
       <article class="span9">
         <section>
           <h1>article header h1</h1>
-          <p>The unholy memories and the witches follow, no one questions why the damned call your name cunninger than the petty numbness, more frozen than witches in swirling dust.  they melt my wisdom and cry out with all my terror.</p>
+          <p>The unholy memories and the witches follow, no one qᵫﬅions why the damned call your name cunninger than the petty numbneſs, more frozen than witches in ſwirling duﬅ.  they melt my wiſdom and cry out with all my terror.</p>
         </section>
         <section>
           <h2>article section h2</h2>
-          <p>Deeper than a petty bitterness, no one cares why the shadows bleed, delivering me to swirling dust.  in the Hell my frenzy shall beg forgiveness.  oh my blood! the love! they drip my heart and flail madly with all my numbness. in the the gates of hell my torment shall fall limply...</p>
+          <p>Deeper than a petty bitterneſs, no one cares why the ſhadows bleed, delivering me to ſwirling duﬅ.  in the Hell my frenzy ſhall beg forgiveneſs.  oh my blood! the love! they drip my heart and ﬂail madly with all my numbneſs. in the the gates of hell my torment ſhall fall limply…</p>
         </section>
         <section>
           <h2>article section h2</h2>
-          <p>The angry shadows and the hand of Heaven scour, delivering me to a void deader than damned in broken ground, cunninger than damned in death.  in the nothingness my misery shall beg forgiveness because no one cares why the condemned cry out.</p>
+          <p>The angry ſhadows and the hand of Heaven ſcour, delivering me to a void deader than damned in broken ground, cunninger than damned in death.  in the nothingneſs my miſery ſhall beg forgiveneſs becauſe no one cares why the condemned cry out.</p>
         </section>
         <section>
           <h3>article footer h3</h3>
-          <p>the sickly shadows and the shadows surround, the dead hand of Heaven and the memories approach... OH MY SOUL! THE TERROR!  moroser than stroke of death in my doom and sicklier than shadows in the path that shall deliver me to the witching hour.</p>
+          <p>the ſickly ſhadows and the ſhadows ſurround, the dead hand of Heaven and the memories approach… OH MY SOUL! THE TERROR!  moroſer than ﬅroke of death in my doom and ſicklier than ſhadows in the path that ſhall deliver me to the witching hour.</p>
         </section>
       </article>
       <aside class="span3">
         <h3>aside</h3>
-        <p>Every burning dumpster is a refusal to be productive, a blow against the temporality of liberalism, a recognition of the singular teleology inherent in the articulation of multiplicities.</p>
+        <p>Every burning dumpﬅer is a refuſal to be productive, a blow againﬅ the temporality of liberaliſm, a recognition of the ſingular teleology inherent in the articulation of multiplicities.</p>
       </aside>
     </div>
   </div>
@@ -821,41 +879,66 @@ cat >$PROJ/templates/$PROJ/index.html <<EOF
 {% endblock content %}
 EOF
 
+echo "generating $PROJ/templates/$PROJ/about.html"
+cat >$PROJ/templates/$PROJ/about.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% block title %}About | {{ block.super }}{% endblock %}
+{% block page_title %}About{% endblock %}
+{% block body_class %}about{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>About</h1>
+    </header>
+    <div class="row">
+      <div class="span12">
+        <p>The unholy memories and the witches follow, no one qᵫﬅions why the damned call your name cunninger than the petty numbneſs, more frozen than witches in ſwirling duﬅ.  they melt my wiſdom and cry out with all my terror.</p>
+        <p>Deeper than a petty bitterneſs, no one cares why the ſhadows bleed, delivering me to ſwirling duﬅ.  in the Hell my frenzy ſhall beg forgiveneſs.  oh my blood! the love! they drip my heart and ﬂail madly with all my numbneſs. in the the gates of hell my torment ſhall fall limply…</p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+EOF
+
 echo "generating $PROJ/static/$PROJ/js/$PROJ.coffee..."
 cat >$PROJ/static/$PROJ/js/$PROJ.coffee <<EOF
 $ ->
-    \$("#some-random-button").click (ev) ->
-        ev.preventDefault()
-        alert "you clicked me!"
+  # disable default click behavior in login dropdown (bootstrap)
+  \$('.login form').click (ev) ->
+    ev.stopPropagation()
 
 # Insert CSRF cookie in AJAX requests
 \$(document).ajaxSend (event, xhr, settings) ->
-    getCookie = (name) ->
-        if document.cookie
-            for cookie in document.cookie.split ';'
-                if cookie[0..name.length] is name + "="
-                    return decodeURIComponent cookie[name.length + 1...]
-    sameOrigin = (url) ->
-        host = document.location.host
-        protocol = document.location.protocol
-        sr_origin = '//' + host
-        origin = protocol + sr_origin
-        url is origin or url[..origin.length] is origin + '/' or
-        url is sr_origin or url[..sr_origin.length] is sr_origin + '/' or
-        not /^(\/\/|http:|https:).*/.test url
-    safeMethod = (method) ->
-        /^(GET|HEAD|OPTIONS|TRACE)\$/.test method
-    if not safeMethod settings.type and sameOrigin settings.url
-        xhr.setRequestHeader "X-CSRFToken", getCookie 'csrftoken'
+  getCookie = (name) ->
+    if document.cookie
+      for cookie in document.cookie.split ';'
+        if cookie[0..name.length] is name + "="
+          return decodeURIComponent cookie[name.length + 1...]
+  sameOrigin = (url) ->
+    host = document.location.host
+    protocol = document.location.protocol
+    sr_origin = '//' + host
+    origin = protocol + sr_origin
+    url is origin or url[..origin.length] is origin + '/' or
+    url is sr_origin or url[..sr_origin.length] is sr_origin + '/' or
+    not /^(\/\/|http:|https:).*/.test url
+  safeMethod = (method) ->
+    /^(GET|HEAD|OPTIONS|TRACE)\$/.test method
+  if not safeMethod settings.type and sameOrigin settings.url
+    xhr.setRequestHeader "X-CSRFToken", getCookie 'csrftoken'
 EOF
 
 echo "generating $PROJ/static/$PROJ/css/$PROJ.less..."
 cat >$PROJ/static/$PROJ/css/$PROJ.less <<EOF
 @import "../../bootstrap/less/bootstrap.less";
 
-body.index {
+body.design {
   background-color: #eee;
   padding-top: 40px;
+
+  .login { padding: 1em; }
+  .login a { color: #08c; display: inline; padding: 0; }
 
   .container > footer p { text-align: center; }
   a.btn { color: #404040; text-shadow: none; }
@@ -875,21 +958,309 @@ body.index {
     margin: -20px -20px 20px;
   }
 
-  .content .span12,
-  .content .span4 { min-height: 500px; }
-  .content .span12 { width: 680px; margin-right: 20px; }
-
-  .content .span4 {
-    margin-left: 0;
-    padding-left: 19px;
-    border-left: 1px solid #eee;
-  }
-
   .topbar .btn {
     border: 0;
   }
 
 }
+EOF
+
+echo "generating $PROJ/templates/$PROJ/form_fields.html"
+cat >$PROJ/templates/$PROJ/form_fields.html <<EOF
+{% for field in form %}
+  <div class="control-group {% if field.errors %}error{% endif %}">
+    <label class="control-label" for="id_{{ field.name }}">{{ field.label }}</label>
+    <div class="controls">
+      {{ field }}
+      {% if field.errors %}
+        <span class="help-inline">
+          {% for error in field.errors %}
+            {{ error }}
+          {% endfor %}
+        </span>
+      {% else %}
+        {% if field.help_text %}
+          <span class="help-inline">{{ field.help_text }}</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+EOF
+
+echo "generating $PROJ/templates/$PROJ/form_errors.html"
+cat >$PROJ/templates/$PROJ/form_errors.html <<EOF
+{% for error in form.non_field_errors %}
+  <div class="alert alert-error">{{ error }}</div>
+{% endfor %}
+EOF
+
+echo "generating $PROJ/templates/registration/logged_out.html"
+cat >$PROJ/templates/registration/logged_out.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Change Password | {{ block.super }}{% endblock %}
+{% block page_title %}Change Password{% endblock %}
+{% block body_class %}password_change{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span12">
+        <p>{% trans "Thanks for spending some quality time with the Web site today." %}</p>
+        <p><a href="{% url login %}">{% trans 'Log in again' %}</a></p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+EOF
+
+echo "generating $PROJ/templates/registration/login.html"
+cat >$PROJ/templates/registration/login.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% block title %}Log In | {{ block.super }}{% endblock %}
+{% block page_title %}Log In{% endblock %}
+{% block body_class %}login{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+        <form id="login_form" action="." method="post">{% csrf_token %}
+          {% include "$PROJ/form_errors.html" %}
+          <fieldset>
+            <legend>Log In</legend>
+            {% include "$PROJ/form_fields.html" %}
+            <div>
+              <input type="submit" class="btn btn-primary" value="Submit">&nbsp;
+              <button type="reset" class="btn">Cancel</button>
+            </div>
+          </fieldset>
+        </form>
+        <p>
+          <a href="{% url password_reset %}">Forgot Password?</a>
+        </p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block js_init %}{{ block.super }}
+  \$("input").first().focus();
+  \$("form .error input").first().focus();
+{% endblock js_init %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_change_done.html"
+cat >$PROJ/templates/registration/password_change_done.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Password Change | {{ block.super }}{% endblock %}
+{% block page_title %}Password Change{% endblock %}
+{% block body_class %}password_change{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+        <h2>{% trans 'Password change successful' %}</h2>
+        <p>{% trans 'Your password was changed.' %}</p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_change_form.html"
+cat >$PROJ/templates/registration/password_change_form.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Change Password | {{ block.super }}{% endblock %}
+{% block page_title %}Change Password{% endblock %}
+{% block body_class %}password_change{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span8">
+        <form class="form-horizontal" action="." method="post">{% csrf_token %}
+          {% include "$PROJ/form_errors.html" %}
+          <fieldset>
+            <legend>Change Password</legend>
+            {% include "$PROJ/form_fields.html" %}
+            <div class="form-actions">
+              <input type="submit" class="btn btn-primary" value="Submit">&nbsp;
+              <button type="reset" class="btn">Cancel</button>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+      <div class="span4">
+        <h2>Help</h2>
+        <p>{% trans "Please enter your old password, for security's sake, and then enter your new password twice so we can verify you typed it in correctly." %}</p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block js_init %}{{ block.super }}
+  \$("#id_old_password").first().focus();
+  \$("form .error input").first().focus();
+{% endblock js_init %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_reset_complete.html"
+cat >$PROJ/templates/registration/password_reset_complete.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Password Reset | {{ block.super }}{% endblock %}
+{% block page_title %}Password Reset{% endblock %}
+{% block body_class %}password_reset{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+        <h2>{% trans 'Password reset complete' %}</h2>
+        <p>{% trans "Your password has been set.  You may go ahead and log in now." %}</p>
+        <p><a class="btn" href="{{ login_url }}">{% trans 'Log in' %}</a></p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_reset_confirm.html"
+cat >$PROJ/templates/registration/password_reset_confirm.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Password Reset | {{ block.super }}{% endblock %}
+{% block page_title %}Password Reset{% endblock %}
+{% block body_class %}password_reset{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+{% if validlink %}
+        <h2>{% trans 'Enter new password' %}</h2>
+        <form action="." method="post">{% csrf_token %}
+          {% include "$PROJ/form_errors.html" %}
+          <fieldset>
+            <p>{% trans "Please enter your new password twice so we can verify you typed it in correctly." %}</p>
+            {% include "$PROJ/form_fields.html" %}
+            <div>
+              <input type="submit" class="btn btn-primary" value="Submit">&nbsp;
+              <button type="reset" class="btn">Cancel</button>
+            </div>
+          </fieldset>
+        </form>
+{% else %}
+        <h2>{% trans 'Password reset unsuccessful' %}</h2>
+        <p>{% trans "The password reset link was invalid, possibly because it has already been used.  Please request a new password reset." %}</p>
+{% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block js_init %}{{ block.super }}
+  \$("id_password").focus();
+{% endblock js_init %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_reset_done.html"
+cat >$PROJ/templates/registration/password_reset_done.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% load i18n %}
+{% block title %}Password Reset | {{ block.super }}{% endblock %}
+{% block page_title %}Password Reset{% endblock %}
+{% block body_class %}password_reset{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+        <h2>{% trans 'Password Reset' %}</h2>
+        <p>{% trans "We've e-mailed you instructions for setting your password to the e-mail address you submitted. You should be receiving it shortly." %}</p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_reset_email.html"
+cat >$PROJ/templates/registration/password_reset_email.html <<EOF
+{% load i18n %}{% load url from future %}{% autoescape off %}
+{% blocktrans %}You're receiving this e-mail because you requested a password reset for your user account at {{ site_name }}.{% endblocktrans %}
+
+{% trans "Please go to the following page and choose a new password:" %}
+{% block reset_link %}
+{{ protocol }}://{{ domain }}{% url 'django.contrib.auth.views.password_reset_confirm' uidb36=uid token=token %}
+{% endblock %}
+{% trans "Your username, in case you've forgotten:" %} {{ user.username }}
+
+{% trans "Thanks for using our site!" %}
+
+{% blocktrans %}The {{ site_name }} team{% endblocktrans %}
+
+{% endautoescape %}
+EOF
+
+echo "generating $PROJ/templates/registration/password_reset_form.html"
+cat >$PROJ/templates/registration/password_reset_form.html <<EOF
+{% extends "$PROJ/base.html" %}
+{% block title %}Password Reset | {{ block.super }}{% endblock %}
+{% block page_title %}Password Reset{% endblock %}
+{% block body_class %}password_reset{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <header class="page-header">
+      <h1>User Portal</h1>
+    </header>
+    <div class="row">
+      <div class="span6">
+        <form action="." method="post">{% csrf_token %}
+          {% include "$PROJ/form_errors.html" %}
+          <fieldset>
+            <p>Forgotten your password? Enter your e-mail address below, and we'll e-mail instructions for setting a new one.</p>
+            {% include "$PROJ/form_fields.html" %}
+            <div>
+              <input type="submit" class="btn btn-primary" value="Submit">&nbsp;
+              <button type="reset" class="btn">Cancel</button>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block js_init %}{{ block.super }}
+  \$("id_email").focus();
+{% endblock js_init %}
 EOF
 
 echo "generating conf/nginx/nginx.conf..."

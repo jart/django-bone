@@ -36,6 +36,14 @@ Here's how you use django-bone, assuming python/pip/virtualenv are installed::
     cd /opt
     django-bone myapp
 
+To customize things a bit more, you can do the following::
+
+    AUTHOR="Justine Tunney" \
+    EMAIL="jtunney@lobstertech.com" \
+    DESCRIP="My Awesome Project" \
+    LICENSE="MIT" \
+    django-bone myapp
+
 The following tools and libraries will also be configured:
 
 - Twitter Bootstrap: The hippest way to make clean looking websites.

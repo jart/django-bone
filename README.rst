@@ -36,6 +36,8 @@ Here's how you use django-bone, assuming python/pip/virtualenv are installed::
     cd /opt
     django-bone myapp
 
+Once that's done, view the README file it generates for more details.
+
 To customize things a bit more, you can do the following::
 
     AUTHOR="Justine Tunney" \

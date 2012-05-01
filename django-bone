@@ -121,7 +121,7 @@ setup(
     author               = "$AUTHOR",
     author_email         = "$EMAIL",
     license              = "$LICENSE",
-    install_requires     = ["Django", "south", "django-reversion",
+    install_requires     = ["Django>=1.4", "south", "django-reversion",
                             "python-memcached", "django-debug-toolbar",
                             "django-gravatar"],
     packages             = find_packages(),

@@ -5,6 +5,13 @@
 # Licensed MIT
 #
 
+npm --version >/dev/null 2>&1 || ( echo "please install nodejs"; exit 1 )
+git --version >/dev/null 2>&1 || ( echo "please install git"; exit 1 )
+python --version >/dev/null 2>&1 || ( echo "please install python"; exit 1 )
+virtualenv --version >/dev/null 2>&1 || ( echo "please install virtualenv"; exit 1 )
+wget --version >/dev/null 2>&1 || ( echo "please install wget"; exit 1 )
+make --version >/dev/null 2>&1 || ( echo "please install make"; exit 1 )
+
 PROJ=$1
 
 [[ $PROJ ]]                  || ( echo "missing name!" >&2; exit 1 )
@@ -46,22 +53,6 @@ echo "downloading ez_setup.py..."
 wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py || exit 1
 echo "downloading $PROJ/static/$PROJ/img/favicon.png..."
 wget -qO $PROJ/static/$PROJ/img/favicon.png https://we.riseup.net/favicon.png || exit 1
-echo "downloading $PROJ/static/js/jquery.js..."
-wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js || exit 1
-echo "downloading $PROJ/static/js/jquery.min.js..."
-wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js || exit 1
-echo "downloading $PROJ/static/js/modernizr.js..."
-wget -qO $PROJ/static/js/modernizr.js http://modernizr.com/downloads/modernizr.js || exit 1
-echo "downloading $PROJ/static/js/less.min.js..."
-wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js || exit 1
-echo "downloading $PROJ/static/js/coffee-script.min.js..."
-wget -qO $PROJ/static/js/coffee-script.min.js http://coffeescript.org/extras/coffee-script.js || exit 1
-
-pushd $PROJ/static >/dev/null 2>&1
-echo "Installing Twitter Bootstrap from Git"
-git clone https://github.com/twitter/bootstrap.git || exit $?
-rm -rf bootstrap/.git
-popd >/dev/null 2>&1
 
 echo "generating .gitignore..."
 cat >.gitignore <<EOF
@@ -123,7 +114,7 @@ setup(
     license              = "$LICENSE",
     install_requires     = ["Django>=1.4", "south", "django-reversion",
                             "python-memcached", "django-debug-toolbar",
-                            "django-gravatar"],
+                            "django-gravatar", "gunicorn"],
     packages             = find_packages(),
     include_package_data = True,
     zip_safe             = False,
@@ -157,49 +148,40 @@ Install from git into a virtualenv::
     cd $PROJ
     source bin/activate
     git clone REPO_URL
-    make deps
+    cd $PROJ
+    sudo make deps
     make
 
 How to run a debug server::
 
-    make dev && $PROJ-dev runserver
+    make && $PROJ-dev runserver
 
 How to run a non-debug server::
 
-    make pro && $PROJ runserver
+    $PROJ runserver
 
 View the documentation::
 
     firefox doc/_build/html/index.html
 
 
-Production
+Deployment
 ----------
 
-First you should update to the latest code and build everything::
+The deploy script will minimize your static files locally and then install
+everything to a virtualenv on one or more servers along with an init.d script
+that runs the gunicorn server on 127.0.0.1:7000::
 
-    git pull
-    make pro
+    ./deploy.sh server1 server2 ...
 
-Now install and configure nginx::
+But you also want nginx configured::
 
+    ssh server1
+    cd /opt/$PROJ/$PROJ
     sudo apt-get install nginx
+    sudo cp conf/nginx/$PROJ.conf /etc/nginx/sites-available
     sudo ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
     sudo /etc/init.d/nginx start
-
-Start the backend gunicorn webserver::
-
-    sudo cp conf/init.d/$PROJ /etc/init.d
-    sudo /etc/init.d/$PROJ start
-
-Now check it out by running ``firefox http://localhost/``!!!
-
-You can also run gunicorn manually::
-
-    gunicorn_django --bind=127.0.0.1:7000 --workers=4 $PROJ/settings.py
-
-When using PostgreSQL, it is strongly recommended that you configure pgbouncer
-on your system to significantly reduce request latency and memory consumption.
 
 
 Credits
@@ -255,19 +237,21 @@ static:
 	$PROJ collectstatic --noinput
 
 upgrade-static:
-	uglifyjs -o $PROJ/static/js/modernizr.min.js \\
-		$PROJ/static/js/modernizr.js
+	wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py
+	wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js
+	wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js
+	wget -qO $PROJ/static/js/modernizr.js http://modernizr.com/downloads/modernizr.js
+	uglifyjs -o $PROJ/static/js/modernizr.min.js $PROJ/static/js/modernizr.js
+	wget -qO $PROJ/static/js/coffee-script.min.js http://coffeescript.org/extras/coffee-script.js
+	uglifyjs -o $PROJ/static/js/coffee-script.min.js $PROJ/static/js/coffee-script.js
+	wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js
 	rm -rf $PROJ/static/bootstrap
-	git clone https://github.com/twitter/bootstrap.git \\
-	    $PROJ/static/bootstrap
+	git clone https://github.com/twitter/bootstrap.git $PROJ/static/bootstrap
 	rm -rf $PROJ/static/bootstrap/.git
 	make -C $PROJ/static/bootstrap bootstrap
-	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
-	    $PROJ/static/js
+	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js $PROJ/static/js
 
 deps:
-	apt-get install -y python python-dev python-setuptools
-	easy_install virtualenv pip
 	npm install -g less coffee-script coffeelint uglify-js recess jshint
 
 newdb:
@@ -1942,32 +1926,12 @@ doctest:
 	      "results in \$(BUILDDIR)/doctest/output.txt."
 EOF
 
+sudo make deps
 easy_install pip || exit 1
-
-# ## BEGIN TEMPORARY
-# # install dev django until 1.4 is released
-# # pip download cache doesn't work when installing from a repo :(
-# mkdir -p $PIP_DOWNLOAD_CACHE
-# pushd $PIP_DOWNLOAD_CACHE
-# if [[ -d $PIP_DOWNLOAD_CACHE/django ]]; then
-#     cd django
-#     git pull || exit 1
-# else
-#     git clone git://github.com/django/django.git django || exit 1
-# fi
-# popd
-# git clone $PIP_DOWNLOAD_CACHE/django ../django || exit 1
-# pip install -e ../django || exit 1
-# ## END TEMPORARY
-
-pip install Django sphinx gunicorn pyflakes pep8 || exit 1
 pip install -e $(pwd) || exit 1
-
-$PROJ-dev collectstatic --noinput || exit 1
-$PROJ-dev syncdb || exit 1
-$PROJ-dev migrate || exit 1
-
-make -C doc html
+make upgrade-static
+make static
+make
 
 git init
 git add .

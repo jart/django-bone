@@ -214,25 +214,30 @@ cat >Makefile <<EOF
 dev:
 	pip install sphinx pep8 pyflakes
 	pip install -e .
-	pep8     $PROJ/admin.py
-	pyflakes $PROJ/admin.py
-	pep8     $PROJ/middleware.py
-	pyflakes $PROJ/middleware.py
-	pep8     $PROJ/models.py
-	pyflakes $PROJ/models.py
-	pep8     $PROJ/views.py
-	pyflakes $PROJ/views.py
-	pep8     $PROJ/tests.py
-	pyflakes $PROJ/tests.py
-	pep8     $PROJ/management/commands/example.py
-	pyflakes $PROJ/management/commands/example.py
+	pyflakes $PROJ/admin.py \\
+	         $PROJ/middleware.py \\
+	         $PROJ/models.py \\
+	         $PROJ/views.py \\
+	         $PROJ/tests.py \\
+	         $PROJ/management/commands/example.py
+	pep8     $PROJ/admin.py \\
+	         $PROJ/middleware.py \\
+	         $PROJ/models.py \\
+	         $PROJ/views.py \\
+	         $PROJ/tests.py \\
+	         $PROJ/management/commands/example.py
+	coffeelint $PROJ/static/$PROJ/js/*.coffee
 	$PROJ-dev syncdb
 	$PROJ-dev migrate
 	$PROJ-dev test $PROJ
 	make -C doc html
 
 pro:
+	find . -name \\*.pyc | xargs rm -f
 	pip install -e .
+	$PROJ migrate
+
+static:
 	lessc $PROJ/static/$PROJ/css/$PROJ.less \\
 		$PROJ/static/$PROJ/css/$PROJ.css
 	lessc -x $PROJ/static/$PROJ/css/$PROJ.less \\
@@ -243,21 +248,85 @@ pro:
 		$PROJ/static/$PROJ/js/$PROJ.js
 	uglifyjs -o $PROJ/static/js/modernizr.min.js \\
 		$PROJ/static/js/modernizr.js
+	rm -rf $PROJ/static/bootstrap/bootstrap
 	make -C $PROJ/static/bootstrap bootstrap
 	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
 		$PROJ/static/js
-	$PROJ migrate
 	$PROJ collectstatic --noinput
+
+upgrade-static:
+	uglifyjs -o $PROJ/static/js/modernizr.min.js \\
+		$PROJ/static/js/modernizr.js
+	rm -rf $PROJ/static/bootstrap
+	git clone https://github.com/twitter/bootstrap.git \\
+	    $PROJ/static/bootstrap
+	rm -rf $PROJ/static/bootstrap/.git
+	make -C $PROJ/static/bootstrap bootstrap
+	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
+	    $PROJ/static/js
 
 deps:
 	apt-get install -y python python-dev python-setuptools
 	easy_install virtualenv pip
-	npm install -g less coffee-script coffeelint uglify-js
+	npm install -g less coffee-script coffeelint uglify-js recess jshint
 
 newdb:
 	rm -f $PROJ.sqlite3
 	make
 	$PROJ createsuperuser --username=$USER --email=$EMAIL
+EOF
+
+echo "generating deploy.sh..."
+cat >deploy.sh <<EOF
+#!/bin/bash
+#
+# To deploy your app to multiple servers simultaneously, based off the names
+# you put in your .ssh/config file, run this script as such:
+#
+# ./deploy.sh server1 server2 ...
+#
+set -ex
+
+deploy() {
+
+ssh \$host bash <<EOF
+set -ex
+[[ -d \$DEST/$PROJ ]] || virtualenv \$DEST/$PROJ
+mkdir -p \$DEST/$PROJ/{$PROJ,run,log,static}
+EOF
+
+rsync -avz --exclude .git \\
+    --exclude settings_local.py \\
+    --exclude settings_dev_local.py \\
+    --exclude $PROJ.sqlite3 \\
+    ./ \$host:\$DEST/$PROJ/$PROJ
+rsync -avz ../static/ \$host:\$DEST/$PROJ/static
+
+ssh \$host bash <<EOF
+set -ex
+source \$DEST/$PROJ/bin/activate
+cd \$DEST/$PROJ/$PROJ
+if [[ ! -f $PROJ/settings_local.py ]]; then
+    echo "SECRET_KEY = \\"\\\$(head -c 51 /dev/urandom | base64)\\"" \\
+        >$PROJ/settings_local.py
+fi
+make pro
+sudo cp -a conf/init.d/$PROJ /etc/init.d
+sudo /etc/init.d/$PROJ restart
+EOF
+
+}
+
+[[ \$# > 0 ]] || ( echo need more args; exit 1 )
+[[ \$DEST ]]  || DEST="/opt"
+
+make static
+for host in \$@; do
+    deploy &
+done
+for host in \$@; do
+    wait
+done
 EOF
 
 echo "generating scripts/$PROJ..."
@@ -814,8 +883,8 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
       <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-collapse.js"></script>
       <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-carousel.js"></script>
       <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-typeahead.js"></script>
-      <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
       <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.coffee" type="text/coffeescript"></script>
+      <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
     {% else %}
       <script src="{{ STATIC_URL }}js/jquery.min.js"></script>
       <script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
@@ -1361,29 +1430,32 @@ echo "generating conf/init.d/$PROJ..."
 cat >conf/init.d/$PROJ <<EOF
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:		$PROJ
-# Required-Start:	\$local_fs \$remote_fs \$network \$syslog
-# Required-Stop:	\$local_fs \$remote_fs \$network \$syslog
-# Default-Start:	2 3 4 5
-# Default-Stop:		0 1 6
-# Short-Description:	Start $PROJ gunicorn daemon
-# Description:		Start $PROJ gunicorn daemon
+# Provides:           $PROJ
+# Required-Start:     \$local_fs \$remote_fs \$network \$syslog
+# Required-Stop:      \$local_fs \$remote_fs \$network \$syslog
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description:  Start $PROJ gunicorn daemon
+# Description:        Start $PROJ gunicorn daemon
 ### END INIT INFO
 
 # Edit /etc/default/$PROJ to change these.
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=$PROJ
-DESC=$PROJ
-VIRTUAL_ENV=${VIRTUAL_ENV}
+DESC=$DESCRIP
+VIRTUAL_ENV=/opt/$PROJ
 DAEMON=\${VIRTUAL_ENV}/bin/gunicorn_django
 PIDFILE=\${VIRTUAL_ENV}/run/$PROJ.pid
-SETTINGS=\${VIRTUAL_ENV}/$PROJ/settings.py
-RUNAS=$USER
+LOGFILE=\${VIRTUAL_ENV}/log/$PROJ.log
+CHDIR=\${VIRTUAL_ENV}/$PROJ
+SETTINGS=$PROJ.settings
+MAXREQUESTS=1000
+RUNAS=jart
 WORKERS=5
 BIND=127.0.0.1:7000
 test -r /etc/default/$PROJ && . /etc/default/$PROJ
 
-ARGS="--daemon --bind=\$BIND --workers=\$WORKERS --max-requests=1000 --pid=\$PIDFILE \$SETTINGS"
+ARGS="--daemon --bind=\$BIND --workers=\$WORKERS --max-requests=\$MAXREQUESTS --pid=\$PIDFILE --log-file=\$LOGFILE \$SETTINGS"
 
 set -e
 
@@ -1391,26 +1463,26 @@ set -e
 
 case "\$1" in
   start)
-	echo -n "Starting \$DESC: "
-	start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
-	echo "\$NAME."
-	;;
+    echo -n "Starting \$DESC: "
+    start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS --chdir=\$CHDIR -- \$ARGS
+    echo "\$NAME."
+    ;;
 
   stop)
-	echo -n "Stopping \$DESC: "
-	start-stop-daemon --stop --pidfile \$PIDFILE
-	echo "\$NAME."
-	rm -f \$PIDFILE
-	;;
+    echo -n "Stopping \$DESC: "
+    start-stop-daemon --stop --pidfile \$PIDFILE
+    echo "\$NAME."
+    rm -f \$PIDFILE
+    ;;
 
   restart|force-reload)
-	echo -n "Restarting \$DESC: "
-	start-stop-daemon --stop --pidfile \$PIDFILE
-	rm -f \$PIDFILE
-	sleep 1
-	start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
-	echo "\$NAME."
-	;;
+    echo -n "Restarting \$DESC: "
+    start-stop-daemon --stop --pidfile \$PIDFILE || echo -n
+    rm -f \$PIDFILE
+    sleep 1
+    start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
+    echo "\$NAME."
+    ;;
 
   reload)
     echo -n "Reloading \$DESC: "
@@ -1419,14 +1491,14 @@ case "\$1" in
     ;;
 
   status)
-	status_of_proc \$DAEMON \$NAME
-	;;
+    status_of_proc \$DAEMON \$NAME
+    ;;
 
   *)
-	N=/etc/init.d/\$NAME
-	echo "Usage: \$N {start|stop|reload|restart|force-reload|status}" >&2
-	exit 1
-	;;
+    N=/etc/init.d/\$NAME
+    echo "Usage: \$N {start|stop|reload|restart|force-reload|status}" >&2
+    exit 1
+    ;;
 esac
 
 exit 0

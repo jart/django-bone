@@ -417,7 +417,7 @@ ADMINS = (
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "$PROJ.sqlite3",
+        "NAME": "$DEST/$PROJ/$PROJ/$PROJ.sqlite3",
     },
 }
 
@@ -1442,7 +1442,7 @@ cat >conf/init.d/$PROJ <<EOF
 # Edit /etc/default/$PROJ to change these.
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=$PROJ
-DESC=$DESCRIP
+DESC="$DESCRIP"
 VIRTUAL_ENV=/opt/$PROJ
 DAEMON=\${VIRTUAL_ENV}/bin/gunicorn_django
 PIDFILE=\${VIRTUAL_ENV}/run/$PROJ.pid

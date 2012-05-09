@@ -162,7 +162,13 @@ How to run a non-debug server::
 
 View the documentation::
 
+    make docs
     firefox doc/_build/html/index.html
+
+To minimize media files and fetch the latest third-party files::
+
+    make static
+    make upgrade-static
 
 
 Deployment
@@ -212,6 +218,8 @@ dev:
 	$PROJ-dev syncdb
 	$PROJ-dev migrate
 	$PROJ-dev test $PROJ
+
+docs:
 	make -C doc html
 
 pro:
@@ -1929,9 +1937,10 @@ EOF
 sudo make deps
 easy_install pip || exit 1
 pip install -e $(pwd) || exit 1
-make upgrade-static
-make static
 make
+make docs
+make static
+make upgrade-static
 
 git init
 git add .
@@ -1947,7 +1956,7 @@ To get started you should run:
 
     cd $PROJ/$PROJ
     source ../bin/activate
-    make dev && $PROJ-dev runserver
+    make && $PROJ-dev runserver
 
 For further instructions:
 

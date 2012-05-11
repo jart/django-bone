@@ -1366,7 +1366,10 @@ cat >conf/nginx/$PROJ.conf <<EOF
 #
 # To Enable:
 #
+#   sudo apt-get install nginx
+#   sudo cp conf/nginx/$PROJ.conf /etc/nginx/sites-available
 #   sudo ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
+#   sudo rm -f /etc/nginx/sites-enabled/default
 #   sudo /etc/init.d/nginx reload
 #
 
@@ -1378,8 +1381,8 @@ server {
   listen [::]:80 default;  # listens on both IPv4 and IPv6
   server_name $PROJ.com www.$PROJ.com;
   server_name_in_redirect on;
-  access_log /var/log/$PROJ.com.log;
-  error_log /var/log/$PROJ.com.error.log error;
+  access_log /var/log/nginx/$PROJ.com.log;
+  error_log /var/log/nginx/$PROJ.com.error.log error;
 
   # # also listen for https requests
   # listen [::]:443 default ssl;
@@ -1411,10 +1414,10 @@ server {
     proxy_redirect off;
     proxy_pass http://$PROJ;
     proxy_set_header X-Forwarded-For  \$remote_addr;
-    proxy_set_header X-Forwarded-Host \$PROJ.com;
+    proxy_set_header X-Forwarded-Host $PROJ.com;
     proxy_set_header X-Forwarded-Port \$server_port;
     proxy_connect_timeout 5000ms;
-    limit_req zone=one burst=10;
+    # limit_req zone=one burst=10;
   }
 }
 EOF
@@ -1473,7 +1476,7 @@ case "\$1" in
     start-stop-daemon --stop --pidfile \$PIDFILE || echo -n
     rm -f \$PIDFILE
     sleep 1
-    start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS -- \$ARGS
+    start-stop-daemon --start --pidfile \$PIDFILE --exec \$DAEMON --chuid \$RUNAS --chdir=\$CHDIR -- \$ARGS
     echo "\$NAME."
     ;;
 

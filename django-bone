@@ -1496,6 +1496,7 @@ esac
 
 exit 0
 EOF
+chmod +x conf/init.d/$PROJ
 
 echo "generating $PROJ/management/__init__.py..."
 touch $PROJ/management/__init__.py

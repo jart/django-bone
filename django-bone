@@ -31,7 +31,7 @@ source bin/activate
 mkdir $PROJ
 cd $PROJ
 
-mkdir -p ../{run,static}
+mkdir -p ../{run,log,static}
 mkdir -p scripts
 mkdir -p conf/{init.d,nginx}
 mkdir -p doc/{_build,_static,_templates}
@@ -304,6 +304,7 @@ if [[ ! -f $PROJ/settings_local.py ]]; then
 fi
 make pro
 sudo cp -a conf/init.d/$PROJ /etc/init.d
+sudo update-rc.d $PROJ defaults
 sudo /etc/init.d/$PROJ restart
 EOF
 
@@ -1934,13 +1935,13 @@ doctest:
 	      "results in \$(BUILDDIR)/doctest/output.txt."
 EOF
 
-sudo make deps
+sudo make deps || exit 1
 easy_install pip || exit 1
 pip install -e $(pwd) || exit 1
-make
-make docs
-make static
-make upgrade-static
+make || exit 1
+make docs || exit 1
+make static || exit 1
+make upgrade-static || exit 1
 
 git init
 git add .

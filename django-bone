@@ -219,12 +219,16 @@ dev:
 	$PROJ-dev migrate
 	$PROJ-dev test $PROJ
 
-docs:
+test: dev
+	$PROJ-dev test $PROJ
+
+docs: dev
 	make -C doc html
 
 pro:
 	find . -name \\*.pyc | xargs rm -f
 	pip install -e .
+	$PROJ syncdb --noinput
 	$PROJ migrate
 
 static:
@@ -269,13 +273,14 @@ newdb:
 EOF
 
 echo "generating deploy.sh..."
-cat >deploy.sh <<EOF
+cat >deploy.sh <<OMGEOF
 #!/bin/bash
 #
 # To deploy your app to multiple servers simultaneously, based off the names
 # you put in your .ssh/config file, run this script as such:
 #
 # ./deploy.sh server1 server2 ...
+# DEST=/opt/testenv ./deploy.sh server1 server2 ...
 #
 set -ex
 
@@ -283,7 +288,12 @@ deploy() {
 
 ssh \$host bash <<EOF
 set -ex
-[[ -d \$DEST/$PROJ ]] || virtualenv \$DEST/$PROJ
+if [[ ! -d \$DEST ]]; then
+    sudo chmod go+rwt /opt
+    sudo apt-get install -y python-setuptools
+    sudo easy_install -U virtualenv pip
+    virtualenv \$DEST
+fi
 mkdir -p \$DEST/$PROJ/{$PROJ,run,log,static}
 EOF
 
@@ -291,13 +301,13 @@ rsync -avz --exclude .git \\
     --exclude settings_local.py \\
     --exclude settings_dev_local.py \\
     --exclude $PROJ.sqlite3 \\
-    ./ \$host:\$DEST/$PROJ/$PROJ
-rsync -avz ../static/ \$host:\$DEST/$PROJ/static
+    ./ \$host:\$DEST/$PROJ
+rsync -avz ../static/ \$host:\$DEST/static
 
 ssh \$host bash <<EOF
 set -ex
-source \$DEST/$PROJ/bin/activate
-cd \$DEST/$PROJ/$PROJ
+source \$DEST/bin/activate
+cd \$DEST/$PROJ
 if [[ ! -f $PROJ/settings_local.py ]]; then
     echo "SECRET_KEY = \\"\\\$(head -c 51 /dev/urandom | base64)\\"" \\
         >$PROJ/settings_local.py
@@ -311,7 +321,7 @@ EOF
 }
 
 [[ \$# > 0 ]] || ( echo need more args; exit 1 )
-[[ \$DEST ]]  || DEST="/opt"
+[[ \$DEST ]]  || DEST="/opt/$PROJ"
 
 make static
 for host in \$@; do
@@ -320,7 +330,7 @@ done
 for host in \$@; do
     wait
 done
-EOF
+OMGEOF
 
 echo "generating scripts/$PROJ..."
 cat >scripts/$PROJ <<EOF
@@ -975,6 +985,7 @@ $ ->
   getCookie = (name) ->
     if document.cookie
       for cookie in document.cookie.split ';'
+        cookie = cookie.replace /^\\s+/, ""
         if cookie[0..name.length] is name + "="
           return decodeURIComponent cookie[name.length + 1...]
   sameOrigin = (url) ->
@@ -984,11 +995,11 @@ $ ->
     origin = protocol + sr_origin
     url is origin or url[..origin.length] is origin + '/' or
     url is sr_origin or url[..sr_origin.length] is sr_origin + '/' or
-    not /^(\/\/|http:|https:).*/.test url
+    not /^(\\/\\/|http:|https:).*/.test url
   safeMethod = (method) ->
     /^(GET|HEAD|OPTIONS|TRACE)\$/.test method
   if not safeMethod settings.type and sameOrigin settings.url
-    xhr.setRequestHeader "X-CSRFToken", getCookie 'csrftoken'
+    xhr.setRequestHeader "X-CSRFToken", getCookie "csrftoken"
 EOF
 
 echo "generating $PROJ/static/$PROJ/css/$PROJ.less..."

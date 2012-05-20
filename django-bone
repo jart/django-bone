@@ -717,13 +717,8 @@ urlpatterns = auth_urlpatterns + patterns("",
     # url(r"^article/(?P<slug>[-_\d\w]+)/$", "$PROJ.views.article", name="article"),
     url(r"^error/$", "$PROJ.views.error", name="error"),
     url(r"^admin/", include(adminsite.urls)),
+    url(r'^static/media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),
 )
-
-if settings.DEBUG:
-    urlpatterns += patterns("",
-        url(r"^media/(?P<path>.*)$", "django.views.static.serve",
-            {"document_root": settings.MEDIA_ROOT}),
-    )
 EOF
 
 echo "generating $PROJ/views.py..."

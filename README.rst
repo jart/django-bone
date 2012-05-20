@@ -5,8 +5,8 @@
 =============
 
 :name:        django-bone
-:description: Generates Django Project Skeletons Simply and Properly
-:copyright:   © 2011 Justine Alexandra Roberts Tunney
+:description: The easiest way to start a professional Django project
+:copyright:   © 2012 Justine Alexandra Roberts Tunney
 :license:     Licensed MIT
 
 
@@ -15,7 +15,7 @@ About
 
 django-bone = django + bootstrap + less + coffeescript + sphinx + south +
 reversion + jquery + js/css minimization + debug-toolbar + gravatar +
-pyflakes + pep8 + git + virtualenv + pip + tests
+pyflakes + pep8 + git + virtualenv + pip + deployment + tests
 
 Starting a serious Django project? Not a newbie? Good. django-bone will save
 you a few days worth of work by generating all the annoying boilerplate code
@@ -75,6 +75,11 @@ The following tools and libraries will also be configured:
 - jquery: Who doesn't use jquery?
 
 - modernizr: Helps you use hip HTML5 features with cross browser support.
+
+A shell script for deployment is also created for you. We don't use Fabric
+because Fabric is a joke. Shell scripts have stood the test of time, work
+better, require fewer lines of code, are easier to write, and understood by
+everyone.
 
 Django 1.4 is used with the following cool features configured:
 

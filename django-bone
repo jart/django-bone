@@ -979,8 +979,7 @@ $ ->
 \$(document).ajaxSend (event, xhr, settings) ->
   getCookie = (name) ->
     if document.cookie
-      for cookie in document.cookie.split ';'
-        cookie = cookie.replace /^\\s+/, ""
+      for cookie in document.cookie.split / *; */
         if cookie[0..name.length] is name + "="
           return decodeURIComponent cookie[name.length + 1...]
   sameOrigin = (url) ->

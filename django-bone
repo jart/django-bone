@@ -461,6 +461,7 @@ TEMPLATE_CONTEXT_PROCESSORS = [
     "django.core.context_processors.media",
     "django.core.context_processors.static",
     "django.core.context_processors.debug",
+    "django.core.context_processors.request",
     "django.contrib.messages.context_processors.messages",
 ]
 
@@ -807,7 +808,7 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <link rel="shortcut icon" href="{{ STATIC_URL }}$PROJ/img/favicon.png" />
   <meta name="description" content="{% block description %}$PROJ{% endblock description %}" />
-  <link rel="canonical" href="{% block canonical %}{{ request.path }}{% endblock canonical %}" />
+  <link rel="canonical" href="{% block canonical %}http://CHANGE-ME.COM{{ request.path }}{% endblock canonical %}" />
   {% if debug %}
     <link href="{{ STATIC_URL }}$PROJ/css/$PROJ.less" rel="stylesheet" type="text/less" media="all" />
     <script src="{{ STATIC_URL }}js/less.min.js"></script>

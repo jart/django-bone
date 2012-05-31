@@ -74,8 +74,6 @@ The following tools and libraries will also be configured:
 
 - jquery: Who doesn't use jquery?
 
-- modernizr: Helps you use hip HTML5 features with cross browser support.
-
 A shell script for deployment is also created for you. We don't use Fabric
 because Fabric is a joke. Shell scripts have stood the test of time, work
 better, require fewer lines of code, are easier to write, and understood by

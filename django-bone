@@ -240,8 +240,6 @@ static:
 		$PROJ/static/$PROJ/js/$PROJ.coffee
 	uglifyjs -o $PROJ/static/$PROJ/js/$PROJ.min.js \\
 		$PROJ/static/$PROJ/js/$PROJ.js
-	uglifyjs -o $PROJ/static/js/modernizr.min.js \\
-		$PROJ/static/js/modernizr.js
 	rm -rf $PROJ/static/bootstrap/bootstrap
 	make -C $PROJ/static/bootstrap bootstrap
 	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
@@ -252,8 +250,6 @@ upgrade-static:
 	wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py
 	wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js
 	wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js
-	wget -qO $PROJ/static/js/modernizr.js http://modernizr.com/downloads/modernizr.js
-	uglifyjs -o $PROJ/static/js/modernizr.min.js $PROJ/static/js/modernizr.js
 	wget -qO $PROJ/static/js/coffee-script.min.js http://coffeescript.org/extras/coffee-script.js
 	uglifyjs -o $PROJ/static/js/coffee-script.min.js $PROJ/static/js/coffee-script.js
 	wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js
@@ -815,7 +811,6 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   {% else %}
     <link href="{{ STATIC_URL }}$PROJ/css/$PROJ.min.css" rel="stylesheet" type="text/css" media="all" />
   {% endif %}
-  <script src="{{ STATIC_URL }}js/modernizr{% if not debug %}.min{% endif %}.js"></script>
   {% block extra_head %}
   {% endblock extra_head %}
 </head>

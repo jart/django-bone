@@ -811,6 +811,29 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
   {% else %}
     <link href="{{ STATIC_URL }}$PROJ/css/$PROJ.min.css" rel="stylesheet" type="text/css" media="all" />
   {% endif %}
+  {% block scripts %}
+    {% if debug %}
+      <script src="{{ STATIC_URL }}js/jquery.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-transition.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-alert.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-modal.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-dropdown.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-scrollspy.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tab.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tooltip.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-popover.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-button.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-collapse.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-carousel.js"></script>
+      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-typeahead.js"></script>
+      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.coffee" type="text/coffeescript"></script>
+      <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
+    {% else %}
+      <script src="{{ STATIC_URL }}js/jquery.min.js"></script>
+      <script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
+      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.min.js"></script>
+    {% endif %}
+  {% endblock scripts %}
   {% block extra_head %}
   {% endblock extra_head %}
 </head>
@@ -862,29 +885,6 @@ cat >$PROJ/templates/$PROJ/base.html <<EOF
       {% block content %}{% endblock content %}
     </div> <!-- /container -->
   {% endblock body %}
-  {% block scripts %}
-    {% if debug %}
-      <script src="{{ STATIC_URL }}js/jquery.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-transition.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-alert.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-modal.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-dropdown.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-scrollspy.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tab.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-tooltip.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-popover.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-button.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-collapse.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-carousel.js"></script>
-      <script src="{{ STATIC_URL }}bootstrap/js/bootstrap-typeahead.js"></script>
-      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.coffee" type="text/coffeescript"></script>
-      <script src="{{ STATIC_URL }}js/coffee-script.min.js"></script>
-    {% else %}
-      <script src="{{ STATIC_URL }}js/jquery.min.js"></script>
-      <script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
-      <script src="{{ STATIC_URL }}$PROJ/js/$PROJ.min.js"></script>
-    {% endif %}
-  {% endblock scripts %}
 </body>
 </html>
 EOF
@@ -1390,8 +1390,8 @@ server {
   # ssl_prefer_server_ciphers on;
   # ssl_protocols SSLv3;
   # ssl_ciphers HIGH:!ADH:!MD5;
-  # ssl_certificate /etc/ssl/$PROJ.com/crt-cabundle;
-  # ssl_certificate_key /etc/ssl/$PROJ.com/key;
+  # ssl_certificate /etc/nginx/ssl/$PROJ.com.crt-cabundle;
+  # ssl_certificate_key /etc/nginx/ssl/$PROJ.com.key;
 
   # # get rid of www.
   # if (\$host !~* ^$PROJ\.com\$) {
@@ -1404,6 +1404,7 @@ server {
   location = /sitemap.xml { access_log off; return 404; }
 
   location /static/ {
+    access_log off;
     root ${VIRTUAL_ENV};
     expires 1y;
     add_header Cache-Control public;

@@ -15,7 +15,7 @@ make --version >/dev/null 2>&1 || ( echo "please install make"; exit 1 )
 PROJ=$1
 
 [[ $PROJ ]]                  || ( echo "missing name!" >&2; exit 1 )
-[[ $DEST ]]                  || DEST="."
+[[ $DEST ]]                  || DEST="$(pwd)"
 [[ -d "$DEST/$PROJ" ]]       && ( echo "$PROJ already exists!" >&2; exit 1 )
 [[ $EMAIL ]]                 || EMAIL="$(git config user.email)"
 [[ $EMAIL ]]                 || EMAIL="$USER@$(hostname -f)"
@@ -25,7 +25,13 @@ PROJ=$1
 [[ $LICENSE ]]               || LICENSE="GNU AGPL v3 or later"
 [[ $PIP_DOWNLOAD_CACHE ]]    || export PIP_DOWNLOAD_CACHE="~/.pip/cache"
 
-virtualenv $PROJ
+if [[ ! $PYTHON ]]; then
+    PYTHON="python"
+    python2.7 --version >/dev/null 2>&1 && PYTHON="python2.7"
+    python2.6 --version >/dev/null 2>&1 && PYTHON="python2.6"
+fi
+
+virtualenv -p $PYTHON $PROJ
 cd $PROJ
 source bin/activate
 mkdir $PROJ
@@ -240,10 +246,6 @@ static:
 		$PROJ/static/$PROJ/js/$PROJ.coffee
 	uglifyjs -o $PROJ/static/$PROJ/js/$PROJ.min.js \\
 		$PROJ/static/$PROJ/js/$PROJ.js
-	rm -rf $PROJ/static/bootstrap/bootstrap
-	make -C $PROJ/static/bootstrap bootstrap
-	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js \\
-		$PROJ/static/js
 	$PROJ collectstatic --noinput
 
 upgrade-static:
@@ -251,7 +253,6 @@ upgrade-static:
 	wget -qO $PROJ/static/js/jquery.js http://code.jquery.com/jquery.js
 	wget -qO $PROJ/static/js/jquery.min.js http://code.jquery.com/jquery.min.js
 	wget -qO $PROJ/static/js/coffee-script.min.js http://coffeescript.org/extras/coffee-script.js
-	uglifyjs -o $PROJ/static/js/coffee-script.min.js $PROJ/static/js/coffee-script.js
 	wget -qO $PROJ/static/js/less.min.js http://lesscss.googlecode.com/files/less-1.3.0.min.js
 	rm -rf $PROJ/static/bootstrap
 	git clone https://github.com/twitter/bootstrap.git $PROJ/static/bootstrap
@@ -260,7 +261,9 @@ upgrade-static:
 	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js $PROJ/static/js
 
 deps:
-	npm install -g less coffee-script coffeelint uglify-js recess jshint
+	npm install -g less coffeelint uglify-js recess
+	# avoid conflict with contracts.coffee... ugh
+	coffee --version || npm install -g coffee-script
 
 newdb:
 	rm -f $PROJ.sqlite3
@@ -416,7 +419,7 @@ ADMINS = (
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "$DEST/$PROJ/$PROJ/$PROJ.sqlite3",
+        "NAME": "$PROJ.sqlite3",
     },
 }
 
@@ -1942,6 +1945,7 @@ doctest:
 EOF
 
 sudo make deps || exit 1
+make upgrade-static || exit 1
 easy_install pip || exit 1
 pip install -e $(pwd) || exit 1
 make || exit 1

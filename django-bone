@@ -5,18 +5,24 @@
 # Licensed MIT
 #
 
-npm --version >/dev/null 2>&1 || ( echo "please install nodejs"; exit 1 )
-git --version >/dev/null 2>&1 || ( echo "please install git"; exit 1 )
-python --version >/dev/null 2>&1 || ( echo "please install python"; exit 1 )
-virtualenv --version >/dev/null 2>&1 || ( echo "please install virtualenv"; exit 1 )
-wget --version >/dev/null 2>&1 || ( echo "please install wget"; exit 1 )
-make --version >/dev/null 2>&1 || ( echo "please install make"; exit 1 )
+hash git 2>/dev/null || { echo "sudo apt-get install git" 2>&1; BAD=1; }
+hash python 2>/dev/null || { echo "sudo apt-get install python" 2>&1; BAD=1; }
+hash easy_install 2>/dev/null || { echo "sudo apt-get install python-setuptools" 2>&1; BAD=1; }
+hash virtualenv 2>/dev/null || { echo "sudo apt-get install python-virtualenv" 2>&1; BAD=1; }
+hash wget 2>/dev/null || { echo "sudo apt-get install wget" 2>&1; BAD=1; }
+hash make 2>/dev/null || { echo "sudo apt-get install build-essential" 2>&1; BAD=1; }
+hash npm 2>/dev/null || { echo "sudo apt-get install node npm" 2>&1; BAD=1; }
+hash lessc 2>/dev/null || { echo "sudo npm install -g less" 2>&1; BAD=1; }
+hash coffee 2>/dev/null || { echo "sudo npm install -g coffee-script" 2>&1; BAD=1; }
+hash coffeelint 2>/dev/null || { echo "sudo npm install -g coffeelint" 2>&1; BAD=1; }
+hash uglifyjs 2>/dev/null || { echo "sudo npm install -g uglify-js" 2>&1; BAD=1; }
+[[ -z $BAD ]] || { echo "# Please install these dependencies :)"; exit 1; }
 
 PROJ=$1
 
-[[ $PROJ ]]                  || ( echo "missing name!" >&2; exit 1 )
+[[ $PROJ ]]                  || { echo "missing name!" >&2; exit 1; }
 [[ $DEST ]]                  || DEST="$(pwd)"
-[[ -d "$DEST/$PROJ" ]]       && ( echo "$PROJ already exists!" >&2; exit 1 )
+[[ -d "$DEST/$PROJ" ]]       && { echo "$PROJ already exists!" >&2; exit 1; }
 [[ $EMAIL ]]                 || EMAIL="$(git config user.email)"
 [[ $EMAIL ]]                 || EMAIL="$USER@$(hostname -f)"
 [[ $AUTHOR ]]                || AUTHOR="$(git config user.name)"
@@ -47,7 +53,7 @@ mkdir -p $PROJ/static/{img,css,js}
 mkdir -p $PROJ/static/$PROJ/{img,css,js}
 mkdir -p $PROJ/management/commands
 
-# shortcuts to avoid directory hell
+# Shortcuts to avoid directory hell.
 ln -sf $PROJ/$PROJ ../code
 ln -sf $PROJ/$PROJ/templates/$PROJ ../html
 ln -sf $PROJ/$PROJ/templates/$PROJ ../html
@@ -118,7 +124,7 @@ setup(
     author               = "$AUTHOR",
     author_email         = "$EMAIL",
     license              = "$LICENSE",
-    install_requires     = ["Django>=1.4", "south", "django-reversion",
+    install_requires     = ["Django >=1.4", "south", "django-reversion",
                             "python-memcached", "django-debug-toolbar",
                             "django-gravatar", "gunicorn"],
     packages             = find_packages(),
@@ -143,19 +149,24 @@ cat >README.rst <<EOF
 :license:     $LICENSE
 
 
-Usage
-=====
+Development
+===========
 
-Install from git into a virtualenv::
+Install these developer tools on your workstation::
+
+    sudo apt-get install python python-setuptools python-virtualenv \
+        git wget node npm build-essential
+    sudo npm install -g less coffee-script coffeelint uglify-js
+
+Create a virtualenv virtualenv::
 
     sudo chmod go+rwt /opt  # let people create new files in /opt
     cd /opt
     virtualenv $PROJ
     cd $PROJ
     source bin/activate
-    git clone REPO_URL
+    git clone git@github.com:$USER/$PROJ.git
     cd $PROJ
-    sudo make deps
     make
 
 How to run a debug server::
@@ -177,23 +188,40 @@ To minimize media files and fetch the latest third-party files::
     make upgrade-static
 
 
-Deployment
-----------
+Production
+==========
 
-The deploy script will minimize your static files locally and then install
-everything to a virtualenv on one or more servers along with an init.d script
-that runs the gunicorn server on 127.0.0.1:7000::
+The deploy.sh script uploads your app to all your production servers::
 
-    ./deploy.sh server1 server2 ...
+    ./deploy.sh root@server1 root@server2 ...
 
-But you also want nginx configured::
+Here's what it does:
 
-    ssh server1
-    cd /opt/$PROJ/$PROJ
-    sudo apt-get install nginx
-    sudo cp conf/nginx/$PROJ.conf /etc/nginx/sites-available
-    sudo ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
-    sudo /etc/init.d/nginx start
+- Locally compile all your .py files to .pyc.
+- Locally compile and minimize all your Less and CoffeeScript code.
+- Locally run the Django "collectstatic" command.
+- Creates a virtualenv on each server in /opt/$PROJ
+- Rsync's everything except the original source code.
+- Runs "make pro" on server which runs setup.py, syncdb, south migrate, etc.
+- Creates user/group named $PROJ and fixes file permissions.
+- Starts a backend gunicorn webserver on 127.0.0.1:7000 as user $PROJ.
+- Installs /etc/init.d/$PROJ so gunicorn runs at startup.
+
+You're responsible for setting up a front-end webserver. We recommended nginx::
+
+    scp conf/nginx/$PROJ.conf root@loadbalancer:
+    ssh root@loadbalancer
+    apt-get install nginx
+    cp $PROJ.conf /etc/nginx/sites-available
+    ln -sf ../sites-available/$PROJ.conf /etc/nginx/sites-enabled
+    /etc/init.d/nginx start
+
+If you actually have multiple backend webservers, then you'll probably want to
+override the gunicorn listen address (specified in the init.d script) by
+putting ``BIND=0.0.0.0:7000`` in ``/etc/default/$PROJ``.
+
+You'll also probably want to override Django settings on your server, in which
+case you'll edit ``/opt/$PROJ/$PROJ/$PROJ/settings_local.py``.
 
 
 Credits
@@ -231,8 +259,11 @@ test: dev
 docs: dev
 	make -C doc html
 
-pro:
+compile:
 	find . -name \\*.pyc | xargs rm -f
+	python -m compileall . >/dev/null
+
+pro:
 	pip install -e .
 	$PROJ syncdb --noinput
 	$PROJ migrate
@@ -246,7 +277,7 @@ static:
 		$PROJ/static/$PROJ/js/$PROJ.coffee
 	uglifyjs -o $PROJ/static/$PROJ/js/$PROJ.min.js \\
 		$PROJ/static/$PROJ/js/$PROJ.js
-	$PROJ collectstatic --noinput
+	$PROJ collectstatic --ignore=*.coffee --ignore=*.less --noinput
 
 upgrade-static:
 	wget -qO ez_setup.py http://peak.telecommunity.com/dist/ez_setup.py
@@ -257,13 +288,9 @@ upgrade-static:
 	rm -rf $PROJ/static/bootstrap
 	git clone https://github.com/twitter/bootstrap.git $PROJ/static/bootstrap
 	rm -rf $PROJ/static/bootstrap/.git
+	( cd $PROJ/static/bootstrap && npm install -d )
 	make -C $PROJ/static/bootstrap bootstrap
 	cp $PROJ/static/bootstrap/bootstrap/js/bootstrap.min.js $PROJ/static/js
-
-deps:
-	npm install -g less coffeelint uglify-js recess
-	# avoid conflict with contracts.coffee... ugh
-	coffee --version || npm install -g coffee-script
 
 newdb:
 	rm -f $PROJ.sqlite3
@@ -285,50 +312,89 @@ set -ex
 
 deploy() {
 
-ssh \$host bash <<EOF
+ssh \$host bash <<EOF || exit \\\$?
 set -ex
 if [[ ! -d \$DEST ]]; then
-    sudo chmod go+rwt /opt
-    sudo apt-get install -y python-setuptools
-    sudo easy_install -U virtualenv pip
-    virtualenv \$DEST
+  sudo apt-get install -y python-setuptools python-virtualenv
+  virtualenv \$DEST || exit \\\$?
 fi
-mkdir -p \$DEST/$PROJ/{$PROJ,run,log,static}
+if ! grep $PROJ /etc/passwd >/dev/null; then
+  sudo groupadd $PROJ || exit \\\$?
+  sudo useradd -g $PROJ $PROJ || exit \\\$?
+fi
+mkdir -p \$DEST/$PROJ/{$PROJ,run,log,static} || exit \\\$?
 EOF
 
-rsync -avz --exclude .git \\
+rsync -avz \\
+    --exclude .git \\
+    --exclude \\*.py \\
+    --exclude \\*.less \\
+    --exclude \\*.coffee \\
     --exclude settings_local.py \\
     --exclude settings_dev_local.py \\
     --exclude $PROJ.sqlite3 \\
-    ./ \$host:\$DEST/$PROJ
-rsync -avz ../static/ \$host:\$DEST/static
+    ./ \$host:\$DEST/$PROJ || exit \\\$?
+rsync -avz ../static/ \$host:\$DEST/static || exit \\\$?
 
-ssh \$host bash <<EOF
+ssh \$host bash <<EOF || exit \\\$?
 set -ex
-source \$DEST/bin/activate
+source \$DEST/bin/activate || exit \\\$?
 cd \$DEST/$PROJ
-if [[ ! -f $PROJ/settings_local.py ]]; then
-    echo "SECRET_KEY = \\"\\\$(head -c 51 /dev/urandom | base64)\\"" \\
-        >$PROJ/settings_local.py
-fi
-make pro
-sudo cp -a conf/init.d/$PROJ /etc/init.d
-sudo update-rc.d $PROJ defaults
-sudo /etc/init.d/$PROJ restart
+make pro || exit \\\$?
+sudo chmod o-rwx . || exit \\\$?
+sudo chown -R $PROJ .. || exit \\\$?
+sudo cp -a conf/init.d/$PROJ /etc/init.d || exit \\\$?
+sudo update-rc.d $PROJ defaults || exit \\\$?
+sudo /etc/init.d/$PROJ restart || exit \\\$?
 EOF
 
 }
 
-[[ \$# > 0 ]] || ( echo need more args; exit 1 )
+################################################################################
+
+[[ \$# > 0 ]] || { echo need more args; exit 1; }
 [[ \$DEST ]]  || DEST="/opt/$PROJ"
 
-make static
-for host in \$@; do
-    deploy &
-done
-for host in \$@; do
+# Perform loop operations concurrently in bash.
+max_jobs() {
+  if [[ \$# != 1 ]]; then
+    echo "Usage: \${FUNCNAME[0]} MAX_CONCURRENT_PROCESSES" 2>&1
+    echo "Example:" 2>&1
+    echo "  ( for id in {1..9}; do" 2>&1
+    echo "      \${FUNCNAME[0]} 3" 2>&1
+    echo "      ( sleep \\$((\\$RANDOM % 5)); echo \\$id ) &" 2>&1
+    echo "    done" 2>&1
+    echo "    wait_jobs )" 2>&1
+    return 1
+  fi
+  local max=\$1
+  while [[ 1 ]]; do
+    local joblist=(\$(jobs -p))
+    if (( \${#joblist[@]} < \$max )); then
+      break
+    fi
     wait
+  done
+}
+
+# Use with max_jobs() to perform loop operations concurrently.
+wait_jobs() {
+  while [[ 1 ]]; do
+    local joblist=(\$(jobs -p))
+    if [[ \${#joblist[@]} == 0 ]]; then
+      break
+    fi
+    wait
+  done
+}
+
+make static
+make compile
+for host in "\$@"; do
+  max_jobs ${MAXJOBS:-3}
+  ( deploy ) &
 done
+wait_jobs
 OMGEOF
 
 echo "generating scripts/$PROJ..."
@@ -388,7 +454,7 @@ project_root = dirname(abspath(__file__))
 
 DEBUG = False
 TEMPLATE_DEBUG = DEBUG
-SECRET_KEY = "please change me to some wacky random value"
+SECRET_KEY = "$(head -c 51 /dev/urandom | base64)"
 STATIC_ROOT = "/opt/$PROJ/static"
 STATIC_URL = "/static/"
 MEDIA_ROOT = "/opt/$PROJ/static/media"
@@ -566,8 +632,7 @@ EOF
 
 echo "generating $PROJ/settings_local.py..."
 cat >$PROJ/settings_local.py <<EOF
-# i"m ignored by git so you can specify your secret settings :)
-SECRET_KEY = "$(head -c 51 /dev/urandom | base64)"
+# I'm ignored by git so you can specify your secret settings :)
 EOF
 
 echo "generating $PROJ/middleware.py..."
@@ -1440,7 +1505,7 @@ cat >conf/init.d/$PROJ <<EOF
 # Description:        Start $PROJ gunicorn daemon
 ### END INIT INFO
 
-# Edit /etc/default/$PROJ to change these.
+# Edit /etc/default/$PROJ to override these options.
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=$PROJ
 DESC="$DESCRIP"
@@ -1450,9 +1515,9 @@ PIDFILE=\${VIRTUAL_ENV}/run/$PROJ.pid
 LOGFILE=\${VIRTUAL_ENV}/log/$PROJ.log
 CHDIR=\${VIRTUAL_ENV}/$PROJ
 SETTINGS=$PROJ.settings
-MAXREQUESTS=1000
-RUNAS=jart
-WORKERS=5
+MAXREQUESTS=5000
+RUNAS=$PROJ
+WORKERS=\$(cat /proc/cpuinfo | perl -lane '/^core.*(\\d+)\$/ and print \$1' | uniq | wc -l)
 BIND=127.0.0.1:7000
 test -r /etc/default/$PROJ && . /etc/default/$PROJ
 
@@ -1944,7 +2009,6 @@ doctest:
 	      "results in \$(BUILDDIR)/doctest/output.txt."
 EOF
 
-sudo make deps || exit 1
 make upgrade-static || exit 1
 easy_install pip || exit 1
 pip install -e $(pwd) || exit 1
